@@ -1,6 +1,6 @@
 # playgrabber_spider.py
 #
-# Download all available episodes of a TV series from svtplay.se using the pirateplay.se API.
+# Download all available episodes of a TV show from svtplay.se using the pirateplay.se API.
 # 
 # Created by magicus <mag@icus.se> 2014-02-25
 #
