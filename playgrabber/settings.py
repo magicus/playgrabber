@@ -11,5 +11,9 @@ BOT_NAME = 'playgrabber'
 SPIDER_MODULES = ['playgrabber.spiders']
 NEWSPIDER_MODULE = 'playgrabber.spiders'
 
+ITEM_PIPELINES = {
+    'playgrabber.pipelines.DownloaderPipeline': 800,
+}
+
 # Crawl responsibly by identifying yourself (and your website) on the user-agent
 #USER_AGENT = 'playgrabber (+http://www.yourdomain.com)'
