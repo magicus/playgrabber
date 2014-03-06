@@ -56,8 +56,7 @@ class PlayGrabberSpider(Spider):
             output_dir=self.output_dir
         else:
             # Create a output dir based on a base dir and the show title
-            # The video title is in format 'show_title - episode_title'
-            show_title = sel.xpath("//div[@class='playVideoBox']/a[@id='player']/@data-title").re('(.*) - .*')[0]
+            show_title = sel.xpath("//div[@class='playVideoBox']//h1/text()").extract()[0]
             output_dir=self.output_base_dir + '/' + show_title
             
         requests = []
@@ -77,10 +76,13 @@ class PlayGrabberSpider(Spider):
         # Grab essential data about this episode
         sel = Selector(response)
         
+        # First grab show title separately
+        show_title = sel.xpath("//div[@class='playVideoBox']//h1/text()").extract()[0]
+
         # The video title is in format 'show_title - episode_title'
-        video_title = sel.xpath("//div[@class='playVideoBox']/a[@id='player']/@data-title").re('(.*) - (.*)')
-        show_title = video_title[0]
-        episode_title = video_title[1]
+        # We can't use it for both show and episode title, since if there's
+        # a " - " in either of them, we might split incorrectly.
+        episode_title = sel.xpath("//div[@class='playVideoBox']/a[@id='player']/@data-title").re(show_title + ' - (.*)')[0]
         # The video_id is in format 'show_id-episode_id'
         video_id = sel.xpath("//div[@class='playVideoBox']/a[@id='player']/@data-popularity-program-id").re('([0-9]*)-([0-9]*)')
         show_id = video_id[0]
