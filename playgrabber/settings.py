@@ -12,7 +12,9 @@ SPIDER_MODULES = ['playgrabber.spiders']
 NEWSPIDER_MODULE = 'playgrabber.spiders'
 
 ITEM_PIPELINES = {
-    'playgrabber.pipelines.DownloaderPipeline': 800,
+    'playgrabber.pipelines.FilterRecordedPipeline':   200,
+    'playgrabber.pipelines.DownloaderPipeline':       800,
+    'playgrabber.pipelines.RecordDownloadedPipeline': 900,
 }
 
 # Crawl responsibly by identifying yourself (and your website) on the user-agent
