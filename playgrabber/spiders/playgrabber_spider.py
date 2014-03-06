@@ -116,10 +116,11 @@ class PlayGrabberSpider(Spider):
         try:
             # URL containing subtitles
             subtitles_url = sel.xpath('//stream[1]/@subtitles').extract()[0]
-            # Assume format is .srt
-            subtitles_suffix = 'srt'
         except IndexError:
             subtitles_url = None
+        # Assume format is .srt
+        subtitles_suffix = 'srt'
+
         try:
             # Suggested file suffix (typically .mp4)
             video_suffix = sel.xpath('//stream[1]/@suffix-hint').extract()[0]
