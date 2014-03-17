@@ -19,6 +19,7 @@ class PlayGrabberItem(Item):
     episode_id = Field()
     episode_short_name = Field()
     episode_title = Field()
+    basename = Field()
 
     # Added from pirateplay.se
     subtitles_url = Field()

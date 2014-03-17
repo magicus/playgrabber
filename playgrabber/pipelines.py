@@ -4,7 +4,6 @@
 # See: http://doc.scrapy.org/en/latest/topics/item-pipeline.html
 
 import json
-from re import search
 from subprocess import call
 
 from scrapy.exceptions import DropItem
@@ -42,7 +41,7 @@ class FilterRecordedPipeline(object):
         output_dir = item['output_dir']
         recorded_items = self.get_recorded_items(output_dir)
         if self.is_item_in_records(item, recorded_items):
-            raise DropItem('Already recorded item, dropping: %s' % item)
+            raise DropItem('Already recorded item, dropping %s:%s.' % (item['show_short_name'], item['episode_short_name']))
 
         # Otherwise, pass it on to downloaded
         return item
@@ -58,26 +57,8 @@ class DownloaderPipeline(object):
         if item['video_format'] != 'HLS':
              raise DropItem('Video format unknown: %s' % item)
 
-        episode_title = item['episode_title']
-        if search(r'.*/.* .*:.*', episode_title):
-            # The episode has no real title, just a 'day/month hour:minute' fake title.
-            # This is no good as filename, use the short name instead.
-            episode_title = item['episode_short_name']
-        
-        show_id = item['show_id']
-        original_show_id = item['original_show_id']
-        if show_id != original_show_id:
-            # This episode is from a different season than the original.
-            # We can't know season number, but mark this as different
-            season_title = '.Show-' + show_id
-        else:
-            # Otherwise we skip putting any season information in the name
-            season_title = ''
-        show_title = item['show_title']
-        # We assume episode id is the episode number
-        episode_id = item['episode_id']
-        # Create an episode basename like this 'ShowName.(Show-xx.)Exx.EpisodeName'
-        basename = show_title + season_title + '.E' + episode_id + '.' + episode_title
+        # Extract basename
+        basename = item['basename']
         
         # Command lines to run to download this data.
         
@@ -104,9 +85,11 @@ class DownloaderPipeline(object):
 class RecordDownloadedPipeline(object):
     # Download information file name, hidden by default
     info_file = '.playgrabber.json'
+    stored_items = []
 
     def record_item(self, item):
         # At this point, we can be sure that the output dir is alreay existing
+        self.stored_items.append(item)
         output_dir = item['output_dir']        
         with open(output_dir + '/' + self.info_file, 'a') as file:
             line = json.dumps(dict(item)) + '\n'

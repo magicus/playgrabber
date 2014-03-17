@@ -7,12 +7,19 @@
 # -*- coding: utf-8 -*-
 
 from urllib import quote_plus
+import re
 
 from scrapy.spider import Spider
 from scrapy.selector import Selector
 from scrapy.http import Request
 
+from scrapy import signals
+from scrapy.signalmanager import SignalManager
+from scrapy.xlib.pydispatch import dispatcher
+
 from playgrabber.items import PlayGrabberItem
+from playgrabber.pipelines import RecordDownloadedPipeline
+from playgrabber.pipelines import FilterRecordedPipeline
 
 class PlayGrabberSpider(Spider):
     name = 'playgrabber'
@@ -25,6 +32,7 @@ class PlayGrabberSpider(Spider):
     #           on show name.
     def __init__(self, url=None, out=None, base=None, *args, **kwargs):
         super(PlayGrabberSpider, self).__init__(*args, **kwargs)
+        SignalManager(dispatcher.Any).connect(self.closed_handler, signal=signals.spider_closed)
         if url==None: 
             raise Exception('Must provide argument "-a url=..."')
         if out==None and base==None: 
@@ -34,6 +42,13 @@ class PlayGrabberSpider(Spider):
         self.start_urls = [url]
         self.output_dir = out
         self.output_base_dir = base
+
+    # This is called when spider is done
+    def closed_handler(self, spider):
+        print "==== Summary of downloaded videos ===="
+        #for item in FilterRecordedPipeline.stored_items:
+        for item in RecordDownloadedPipeline.stored_items:
+            print "Downloaded: '%s - %s' as %s/%s.%s" %  (item['show_title'], item['episode_title'], item['output_dir'], item['basename'], item['video_suffix'])
 
     # Default parse method, entry point
     def parse(self, response):
@@ -100,6 +115,26 @@ class PlayGrabberSpider(Spider):
 
         # Retrieve the partially filled-in item and append more data
         item = response.meta['episode-item']
+
+        ## Calculate a suitable base name
+        basename_title = episode_title
+        if re.search(r'.*/.* .*:.*', basename_title):
+            # The episode has no real title, just a 'day/month hour:minute' fake title.
+            # This is no good as filename, use the short name instead.
+            basename_title = episode_short_name
+        
+        original_show_id = item['original_show_id']
+        if show_id != original_show_id:
+            # This episode is from a different season than the original.
+            # We can't know season number, but mark this as different
+            season_title = '.Show-' + show_id
+        else:
+            # Otherwise we skip putting any season information in the name
+            season_title = ''
+        # We assume episode id is the episode number
+        # Create an episode basename like this 'ShowName.(Show-xx.)Exx.EpisodeName'
+        basename = show_title + season_title + '.E' + episode_id + '.' + basename_title
+        
         item['episode_url']        = episode_url
         item['show_id']            = show_id
         item['show_short_name']    = show_short_name
@@ -107,6 +142,7 @@ class PlayGrabberSpider(Spider):
         item['episode_id']         = episode_id
         item['episode_short_name'] = episode_short_name
         item['episode_title']      = episode_title
+        item['basename']           = basename
 
         request = Request('http://pirateplay.se/api/get_streams.xml?url=' + quote_plus(episode_url), callback=self.parse_pirateplay)
         # Pass on the item for further populating
