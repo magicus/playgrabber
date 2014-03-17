@@ -76,7 +76,7 @@ class PlayGrabberSpider(Spider):
         
         if not show_season_title_map.has_key(show_id):
             # Let's add this season's default name, 'Show-NNN'
-            show_season_title_map[show_id] = 'Show-' + show_id
+            show_season_title_map[show_id] = '.Show-' + show_id
             updated = True
 
         if updated:
