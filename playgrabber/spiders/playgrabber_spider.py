@@ -8,6 +8,7 @@
 
 from urllib import quote_plus
 import re
+import json
 
 from scrapy.spider import Spider
 from scrapy.selector import Selector
@@ -18,12 +19,16 @@ from scrapy.signalmanager import SignalManager
 from scrapy.xlib.pydispatch import dispatcher
 
 from playgrabber.items import PlayGrabberItem
+from playgrabber.items import ShowInfoItem
 from playgrabber.pipelines import RecordDownloadedPipeline
 from playgrabber.pipelines import FilterRecordedPipeline
 
 class PlayGrabberSpider(Spider):
     name = 'playgrabber'
     allowed_domains = ['svtplay.se', 'pirateplay.se']
+
+    # Download information file name, hidden by default
+    show_info_file = '.playgrabber-show.json'    
 
     # Accepted argument: 
     #  'url'  = svtplay.se start URL
@@ -49,6 +54,40 @@ class PlayGrabberSpider(Spider):
         #for item in FilterRecordedPipeline.stored_items:
         for item in RecordDownloadedPipeline.stored_items:
             print "Downloaded: '%s - %s' as %s/%s.%s" %  (item['show_title'], item['episode_title'], item['output_dir'], item['basename'], item['video_suffix'])
+
+    # Return a proper title to apply to this season
+    def get_season_title(self, show_id, show_url, output_dir):
+        updated = False
+        try:
+            with open(output_dir + '/' + self.show_info_file, 'r') as file:
+                line = file.readline()
+                show_item = json.loads(line)
+                show_season_title_map = show_item['show_season_title_map']
+        except:
+            # If the file does not exist, we create a new show_item.
+            show_item = ShowInfoItem()
+            show_item['output_dir'] = output_dir
+            show_item['show_url'] = show_url
+            # If we create this file, default is that the first show_id gets the
+            # empty string as season name.
+            show_season_title_map = { show_id: ''}
+            show_item['show_season_title_map'] = show_season_title_map
+            updated = True
+        
+        if not show_season_title_map.has_key(show_id):
+            # Let's add this season's default name, 'Show-NNN'
+            show_season_title_map[show_id] = 'Show-' + show_id
+            updated = True
+
+        if updated:
+            # Save it back to disk if needed
+            show_item['show_season_title_map'] = show_season_title_map
+            with open(output_dir + '/' + self.show_info_file, 'w') as file:
+                line = json.dumps(dict(show_item)) + '\n'
+                file.write(line)
+
+        season_title = show_season_title_map[show_id]
+        return season_title
 
     # Default parse method, entry point
     def parse(self, response):
@@ -86,7 +125,7 @@ class PlayGrabberSpider(Spider):
             request.meta['episode-item'] = item
             requests.append(request)
         return requests
-        
+
     def parse_single_episode(self, response):
         # Grab essential data about this episode
         sel = Selector(response)
@@ -123,14 +162,8 @@ class PlayGrabberSpider(Spider):
             # This is no good as filename, use the short name instead.
             basename_title = episode_short_name
         
-        original_show_id = item['original_show_id']
-        if show_id != original_show_id:
-            # This episode is from a different season than the original.
-            # We can't know season number, but mark this as different
-            season_title = '.Show-' + show_id
-        else:
-            # Otherwise we skip putting any season information in the name
-            season_title = ''
+        season_title = self.get_season_title(show_id, item['show_url'], item['output_dir'])
+
         # We assume episode id is the episode number
         # Create an episode basename like this 'ShowName.(Show-xx.)Exx.EpisodeName'
         basename = show_title + season_title + '.E' + episode_id + '.' + basename_title
