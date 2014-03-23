@@ -7,6 +7,7 @@
 # -*- coding: utf-8 -*-
 
 from urllib import quote_plus
+from subprocess import call
 import re
 import json
 
@@ -82,6 +83,13 @@ class PlayGrabberSpider(Spider):
         if updated:
             # Save it back to disk if needed
             show_item['show_season_title_map'] = show_season_title_map
+            # First, create output dir if not alreay existing
+            mkdir_cmd_line="mkdir -p '" + output_dir + "'"
+            print 'Executing: ' + mkdir_cmd_line
+            result_code = call(mkdir_cmd_line, shell=True)
+            if result_code != 0:
+                 raise "Failed to create directory " + output_dir
+            
             with open(output_dir + '/' + self.show_info_file, 'w') as file:
                 line = json.dumps(dict(show_item)) + '\n'
                 file.write(line)
