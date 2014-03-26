@@ -108,7 +108,10 @@ class PlayGrabberSpider(Spider):
         sel = Selector(response)
         all_episode_urls = sel.xpath("//div[@id='programpanel']//article/div[@class='playDisplayTable']/a[1]/@href").extract()
         # The video_id is in format 'show_id-episode_id'
-        show_id = sel.xpath("//div[@class='playVideoBox']/a[@id='player']/@data-popularity-program-id").re('([0-9]*)-[0-9]*')[0]
+        try:
+            show_id = sel.xpath("//div[@class='playVideoBox']/a[@id='player']/@data-popularity-program-id").re('([0-9]*)-[0-9]*')[0]
+        except:
+            show_id = '00000'
 
         # Get the show url from the rss link
         show_url = sel.xpath("//link[@type='application/rss+xml']/@href").re('(.*)/rss.xml')[0]
@@ -146,13 +149,24 @@ class PlayGrabberSpider(Spider):
         # a " - " in either of them, we might split incorrectly.
         episode_title = sel.xpath("//div[@class='playVideoBox']/a[@id='player']/@data-title").re(show_title + ' - (.*)')[0]
         # The video_id is in format 'show_id-episode_id'
-        video_id = sel.xpath("//div[@class='playVideoBox']/a[@id='player']/@data-popularity-program-id").re('([0-9]*)-([0-9]*)')
-        show_id = video_id[0]
-        episode_id = video_id[1]
+        try:
+            video_id = sel.xpath("//div[@class='playVideoBox']/a[@id='player']/@data-popularity-program-id").re('([0-9]*)-([0-9]*)')
+            show_id = video_id[0]
+            episode_id = video_id[1]
+        except:
+            show_id = '00000'
+            try:
+                episode_id = sel.xpath("//div[@class='playVideoBox']/a[@id='player']/@data-json-href").re('/video/(.*)')[0]
+            except:
+                episode_id = '00'
 
         # A nice and robust URL to pass to pirateplay.se, of the format:
         # http://www.svtplay.se/video/4711/episode-short-name
-        episode_url = sel.xpath("//div[@class='playVideoBox']/a[@id='player']/@data-popularity-url").extract()[0]
+        try:
+            episode_url = sel.xpath("//div[@class='playVideoBox']/a[@id='player']/@data-popularity-url").extract()[0]
+        except:
+            # As fallback, use provided url instead of fancy one.
+            episode_url = response.url
 
         # A computer-friendly short version of the title, suitable to use as filename etc.
         episode_short_name = episode_url.split('/')[-1]
