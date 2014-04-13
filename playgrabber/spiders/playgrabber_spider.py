@@ -179,8 +179,9 @@ class PlayGrabberSpider(Spider):
 
         ## Calculate a suitable base name
         basename_title = episode_title
-        if re.search(r'.*/.* .*:.*', basename_title):
-            # The episode has no real title, just a 'day/month hour:minute' fake title.
+        if re.search(r'/', basename_title):
+            # The episode has no real title, just a 'day/month [hour:minute]' fake title,
+            # or another title with a slash. 
             # This is no good as filename, use the short name instead.
             basename_title = episode_short_name
         
