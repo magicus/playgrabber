@@ -1,12 +1,11 @@
 # playgrabber_spider.py
 #
-# Download all available episodes of a TV show from svtplay.se using the pirateplay.se API.
+# Download all available episodes of a TV show from svtplay.se.
 # 
 # Created by magicus <mag@icus.se> 2014-02-25
 #
 # -*- coding: utf-8 -*-
 
-from urllib import quote_plus
 from subprocess import call
 import re
 import json
@@ -223,6 +222,8 @@ class PlayGrabberSpider(Spider):
         # First locate subtitles
         try:
             subtitles_url = flashvars_json["video"]["subtitleReferences"][0]["url"]
+            if subtitles_url == "":
+                subtitles_url = None
         except:
             subtitles_url = None
         # Assume format is .srt
