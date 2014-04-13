@@ -26,7 +26,8 @@ from playgrabber.pipelines import FilterRecordedPipeline
 
 class PlayGrabberSpider(Spider):
     name = 'playgrabber'
-    allowed_domains = ['svtplay.se', 'pirateplay.se']
+    allowed_domains = ['svtplay.se']
+    target_resolution = '1280x720'
 
     # Download information file name, hidden by default
     show_info_file = '.playgrabber-show.json'    
@@ -200,37 +201,76 @@ class PlayGrabberSpider(Spider):
         item['episode_title']      = episode_title
         item['basename']           = basename
 
-        request = Request('http://pirateplay.se/api/get_streams.xml?url=' + quote_plus(episode_url), callback=self.parse_pirateplay)
+        # The "?type=embed" extension can really be read from the html code,
+        # but it never seems to change so take the easy way out. :-)
+        # With the embedded version, the "flashvars" are available which
+        # will point to the HLS stream.
+        request = Request(episode_url + '?type=embed', callback=self.parse_flashvars)
         # Pass on the item for further populating
         request.meta['episode-item'] = item
+        
         return request
 
-    def parse_pirateplay(self, response):
+    def parse_flashvars(self, response):
         sel = Selector(response)
+        
+        # The data we're looking for is encoded as json in a
+        # <object>...<param name="flashvars" value="json={...}">.
+        flashvars_string = sel.xpath("//div[@class='svtFullFrame']/div[@id='player']/object[@class='svtplayer-jsremove']/param[@name='flashvars']/@value").re('json=(.*)')[0]
+        # Parse the string to a json object.
+        flashvars_json = json.loads(flashvars_string)
+        
+        # First locate subtitles
         try:
-            # URL containing subtitles
-            subtitles_url = sel.xpath('//stream[1]/@subtitles').extract()[0]
-        except IndexError:
+            subtitles_url = flashvars_json["video"]["subtitleReferences"][0]["url"]
+        except:
             subtitles_url = None
         # Assume format is .srt
         subtitles_suffix = 'srt'
-
-        try:
-            # Suggested file suffix (typically .mp4)
-            video_suffix = sel.xpath('//stream[1]/@suffix-hint').extract()[0]
-        except IndexError:
-            # Provide default value
-            video_suffix = 'mp4'
-        # URL for video stream
-        video_url = sel.xpath('//stream[1]/text()').extract()[0]
-
-        # Assume HLS which is only supported format at the moment.
-        video_format = 'HLS'
-
-        # Retrieve the partially filled-in item and complete it
+        
+        # Retrieve the partially filled-in item and append more data
         item = response.meta['episode-item']
         item['subtitles_url']    = subtitles_url        
         item['subtitles_suffix'] = subtitles_suffix        
+
+        video_references = flashvars_json["video"]["videoReferences"]
+        # Typically, this array contains two elements, "flash" and "ios".
+        # "ios" contains the HLS entry point we need.
+        for ref in video_references:
+            if ref['playerType'] == 'ios':
+                video_master_url = ref['url']
+        
+        if video_master_url:
+            # dont_filter is True, since this is on svtplay*.akamaihd.net, outside allowed_domains.
+            request = Request(video_master_url, callback=self.parse_master_m3u8, dont_filter=True)
+            # Pass on the item for further populating
+            request.meta['episode-item'] = item
+            return request
+        else:
+            raise("Cannot locate video master URL!")
+        
+    def parse_master_m3u8(self, response):
+        # Now we got ourself an m3u8 (m3u playlist in utf-8) file in 
+        # the response. The URL we're looking for is preceeded by a 
+        # comment stating the proper resolution.
+        get_next = False
+        video_url = None
+        for line in response.body.splitlines():
+            if get_next:
+                video_url = line
+                break
+            if re.search(r'RESOLUTION=' + self.target_resolution, line):
+                get_next = True
+        if video_url == None:
+            raise("Cannot locate video URL of requested resolution")
+
+        # Assume mp4 is a good suffix.
+        video_suffix = 'mp4'
+        # We've been parsing HLS all along.
+        video_format = 'HLS'
+        
+        # Retrieve the partially filled-in item and complete it
+        item = response.meta['episode-item']
         item['video_url']        = video_url        
         item['video_suffix']     = video_suffix        
         item['video_format']     = video_format        
