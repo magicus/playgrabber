@@ -9,6 +9,7 @@
 from subprocess import call
 import re
 import json
+import glob
 
 from scrapy.spider import Spider
 from scrapy.selector import Selector
@@ -31,6 +32,19 @@ class PlayGrabberSpider(Spider):
     # Download information file name, hidden by default
     show_info_file = '.playgrabber-show.json'    
 
+    def find_shows_in_base(self, base):
+        urls = []
+        for filename in glob.glob(base + "/*/" + self.show_info_file):
+            try:
+                with open(filename, 'r') as file:
+                    line = file.readline()
+                    show_item = json.loads(line)
+                    show_url = show_item['show_url']
+                    urls.append(show_url)
+            except:
+                raise "Failed to open show info file: " + filename
+        return urls
+            
     # Accepted argument: 
     #  'url'  = svtplay.se start URL
     #  'out'  = output directory to store downloaded files in
@@ -39,13 +53,16 @@ class PlayGrabberSpider(Spider):
     def __init__(self, url=None, out=None, base=None, *args, **kwargs):
         super(PlayGrabberSpider, self).__init__(*args, **kwargs)
         SignalManager(dispatcher.Any).connect(self.closed_handler, signal=signals.spider_closed)
-        if url==None: 
-            raise Exception('Must provide argument "-a url=..."')
         if out==None and base==None: 
             raise Exception('Must provide argument "-a out=..." or "-a base=..."')
         if out!=None and base!=None:
             raise Exception('Cannot provide both argument "-a out=..." and "-a base=..."')
-        self.start_urls = [url]
+        if url==None and base==None:
+            raise Exception('Must provide argument "-a url=..." or "-a base=..."')
+        if url:
+            self.start_urls = [url]
+        else:
+            self.start_urls = self.find_shows_in_base(base)
         self.output_dir = out
         self.output_base_dir = base
 
