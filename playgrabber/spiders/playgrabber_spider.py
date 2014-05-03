@@ -158,13 +158,9 @@ class PlayGrabberSpider(Spider):
         # Grab essential data about this episode
         sel = Selector(response)
         
-        # First grab show title separately
+        # First grab show title
         show_title = sel.xpath("//div[@class='playVideoBox']//h1/text()").extract()[0]
 
-        # The video title is in format 'show_title - episode_title'
-        # We can't use it for both show and episode title, since if there's
-        # a " - " in either of them, we might split incorrectly.
-        episode_title = sel.xpath("//div[@class='playVideoBox']/a[@id='player']/@data-title").re(show_title + ' - (.*)')[0]
         # The video_id is in format 'show_id-episode_id'
         try:
             video_id = sel.xpath("//div[@class='playVideoBox']/a[@id='player']/@data-popularity-program-id").re('([0-9]*)-([0-9]*)')
@@ -177,7 +173,7 @@ class PlayGrabberSpider(Spider):
             except:
                 episode_id = '00'
 
-        # A nice and robust URL to pass to pirateplay.se, of the format:
+        # A nice and robust URL, of the format:
         # http://www.svtplay.se/video/4711/episode-short-name
         try:
             episode_url = sel.xpath("//div[@class='playVideoBox']/a[@id='player']/@data-popularity-url").extract()[0]
@@ -194,28 +190,12 @@ class PlayGrabberSpider(Spider):
         # Retrieve the partially filled-in item and append more data
         item = response.meta['episode-item']
 
-        ## Calculate a suitable base name
-        basename_title = episode_title
-        if re.search(r'/', basename_title):
-            # The episode has no real title, just a 'day/month [hour:minute]' fake title,
-            # or another title with a slash. 
-            # This is no good as filename, use the short name instead.
-            basename_title = episode_short_name
-        
-        season_title = self.get_season_title(show_id, item['show_url'], item['output_dir'])
-
-        # We assume episode id is the episode number
-        # Create an episode basename like this 'ShowName.(Show-xx.)Exx.EpisodeName'
-        basename = show_title + season_title + '.E' + episode_id + '.' + basename_title
-        
         item['episode_url']        = episode_url
         item['show_id']            = show_id
         item['show_short_name']    = show_short_name
         item['show_title']         = show_title
         item['episode_id']         = episode_id
         item['episode_short_name'] = episode_short_name
-        item['episode_title']      = episode_title
-        item['basename']           = basename
 
         # The "?type=embed" extension can really be read from the html code,
         # but it never seems to change so take the easy way out. :-)
@@ -236,7 +216,34 @@ class PlayGrabberSpider(Spider):
         # Parse the string to a json object.
         flashvars_json = json.loads(flashvars_string)
         
-        # First locate subtitles
+        # Retrieve the partially filled-in item and append more data
+        item = response.meta['episode-item']
+
+        # Get the episode title
+        try:
+            episode_title = flashvars_json["context"]["title"]
+            if episode_title == "":
+                episode_title = None
+        except:
+            episode_title = None
+
+        ## Calculate a suitable base name
+        basename_title = episode_title
+        if episode_title == None or re.search(r'/', basename_title):
+            # The episode has no real title, just a 'day/month [hour:minute]' fake title,
+            # or another title with a slash. 
+            # This is no good as filename, use the short name instead.
+            basename_title = item['episode_short_name']
+        
+        season_title = self.get_season_title(item['show_id'], item['show_url'], item['output_dir'])
+        # We assume episode id is the episode number
+        # Create an episode basename like this 'ShowName.(Show-xx.)Exx.EpisodeName'
+        basename = item['show_title'] + season_title + '.E' + item['episode_id'] + '.' + basename_title
+        
+        item['episode_title']      = episode_title
+        item['basename']           = basename
+
+        # Now locate subtitles
         try:
             subtitles_url = flashvars_json["video"]["subtitleReferences"][0]["url"]
             if subtitles_url == "":
@@ -246,8 +253,6 @@ class PlayGrabberSpider(Spider):
         # Assume format is .srt
         subtitles_suffix = 'srt'
         
-        # Retrieve the partially filled-in item and append more data
-        item = response.meta['episode-item']
         item['subtitles_url']    = subtitles_url        
         item['subtitles_suffix'] = subtitles_suffix        
 
