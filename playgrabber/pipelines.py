@@ -47,8 +47,8 @@ class FilterRecordedPipeline(object):
         return item
 
 class DownloaderPipeline(object):
-    def call_command(self, cmd_line, action_desc, item):
-        print 'Executing: ' + cmd_line
+    def call_command(self, cmd_line, action_desc, item, spider):
+        spider.log('Executing: ' + cmd_line)
         result_code = call(cmd_line, shell=True)
         if result_code != 0:
              raise DropItem('Failed to ' + action_desc + '. Result code: %i, command line: %s, item: %s' % (result_code, cmd_line, item))
@@ -65,20 +65,20 @@ class DownloaderPipeline(object):
         # First, create output dir if not alreay existing
         output_dir = item['output_dir']
         mkdir_cmd_line="mkdir -p '" + output_dir + "'"
-        self.call_command(mkdir_cmd_line, 'create output directory', item)
+        self.call_command(mkdir_cmd_line, 'create output directory', item, spider)
         
         # Then download subtitles if available
         subtitles_url = item['subtitles_url']
         subtitles_suffix = item['subtitles_suffix']
         if subtitles_url != None:
             wget_cmd_line = "wget -O '" + output_dir + '/' + basename + '.' + subtitles_suffix + "' '" + subtitles_url + "'"
-            self.call_command(wget_cmd_line, 'download subtitles', item)
+            self.call_command(wget_cmd_line, 'download subtitles', item, spider)
 
         # Then download video
         video_url = item['video_url']
         video_suffix = item['video_suffix']
         ffmpeg_cmd_line  = "ffmpeg -y -i '" + video_url + "' -acodec copy -vcodec copy -absf aac_adtstoasc '" + output_dir + '/' + basename + '.' + video_suffix + "'"
-        self.call_command(ffmpeg_cmd_line, 'download video', item)
+        self.call_command(ffmpeg_cmd_line, 'download video', item, spider)
 
         return item
 

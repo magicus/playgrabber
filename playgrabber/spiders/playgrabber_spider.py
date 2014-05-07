@@ -68,10 +68,10 @@ class PlayGrabberSpider(Spider):
 
     # This is called when spider is done
     def closed_handler(self, spider):
-        print "==== Summary of downloaded videos ===="
+        spider.log("==== Summary of downloaded videos ====")
         #for item in FilterRecordedPipeline.stored_items:
         for item in RecordDownloadedPipeline.stored_items:
-            print "Downloaded: '%s - %s' as %s/%s.%s" %  (item['show_title'], item['episode_title'], item['output_dir'], item['basename'], item['video_suffix'])
+            spider.log("Downloaded: '%s - %s' as %s/%s.%s" %  (item['show_title'], item['episode_title'], item['output_dir'], item['basename'], item['video_suffix']))
 
     # Return a proper title to apply to this season
     def get_season_title(self, show_id, show_url, output_dir):
@@ -102,7 +102,7 @@ class PlayGrabberSpider(Spider):
             show_item['show_season_title_map'] = show_season_title_map
             # First, create output dir if not alreay existing
             mkdir_cmd_line="mkdir -p '" + output_dir + "'"
-            print 'Executing: ' + mkdir_cmd_line
+            self.log('Executing: ' + mkdir_cmd_line)
             result_code = call(mkdir_cmd_line, shell=True)
             if result_code != 0:
                  raise "Failed to create directory " + output_dir

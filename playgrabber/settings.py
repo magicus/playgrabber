@@ -19,3 +19,6 @@ ITEM_PIPELINES = {
 
 # Crawl responsibly by identifying yourself (and your website) on the user-agent
 #USER_AGENT = 'playgrabber (+http://www.yourdomain.com)'
+
+# Uncomment this for serial execution (easier to debug)
+#CONCURRENT_REQUESTS = 1
