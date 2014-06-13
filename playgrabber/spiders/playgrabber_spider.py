@@ -123,7 +123,7 @@ class PlayGrabberSpider(Spider):
     def parse_all_episodes(self, response):
         # Now extract all episodes and grab each of them
         sel = Selector(response)
-        all_episode_urls = sel.xpath("//div[@id='programpanel']//article/div[@class='playDisplayTable']/a[1]/@href").extract()
+        all_episode_urls = sel.xpath("//div[@id='more-episodes-panel']//article/a/@href").extract()
         # The video_id is in format 'show_id-episode_id'
         try:
             show_id = sel.xpath("//div[@class='playVideoBox']/a[@id='player']/@data-popularity-program-id").re('([0-9]*)-[0-9]*')[0]
@@ -138,7 +138,7 @@ class PlayGrabberSpider(Spider):
             output_dir=self.output_dir
         else:
             # Create a output dir based on a base dir and the show title
-            show_title = sel.xpath("//div[@class='playVideoBox']//h1/text()").extract()[0]
+            show_title = sel.xpath("//section[@role='main']/article//h1/text()").extract()[0]
             output_dir=self.output_base_dir + '/' + show_title
             
         requests = []
@@ -159,7 +159,7 @@ class PlayGrabberSpider(Spider):
         sel = Selector(response)
         
         # First grab show title
-        show_title = sel.xpath("//div[@class='playVideoBox']//h1/text()").extract()[0]
+        show_title = sel.xpath("//section[@role='main']/article//h1/text()").extract()[0]
 
         # The video_id is in format 'show_id-episode_id'
         try:
