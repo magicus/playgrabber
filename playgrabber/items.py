@@ -11,7 +11,6 @@ class PlayGrabberItem(Item):
     show_url = Field()
     original_show_id = Field()
 
-    # Added from svtplay.se
     episode_url = Field()
     show_id = Field()
     show_short_name = Field()
@@ -19,9 +18,9 @@ class PlayGrabberItem(Item):
     episode_id = Field()
     episode_short_name = Field()
     episode_title = Field()
+    season_id = Field()
     basename = Field()
 
-    # Added from pirateplay.se
     subtitles_url = Field()
     subtitles_suffix = Field()
     video_url = Field()
@@ -33,3 +32,4 @@ class ShowInfoItem(Item):
     output_dir = Field()
     show_url = Field()
     show_season_title_map = Field()
+    show_season_id_map = Field()

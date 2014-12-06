@@ -74,7 +74,7 @@ class PlayGrabberSpider(Spider):
             spider.log("Downloaded: '%s - %s' as %s/%s.%s" %  (item['show_title'], item['episode_title'], item['output_dir'], item['basename'], item['video_suffix']))
 
     # Return a proper title to apply to this season
-    def get_season_title(self, show_id, show_url, output_dir):
+    def get_season_title(self, show_id, season_id, show_url, output_dir):
         updated = False
         try:
             with open(output_dir + '/' + self.show_info_file, 'r') as file:
@@ -86,15 +86,33 @@ class PlayGrabberSpider(Spider):
             show_item = ShowInfoItem()
             show_item['output_dir'] = output_dir
             show_item['show_url'] = show_url
-            # If we create this file, default is that the first show_id gets the
-            # empty string as season name.
-            show_season_title_map = { show_id: ''}
+
+            # First attempt is to name the season using using season_id
+            # to Snn.
+            if season_id != '00':
+                show_season_title_map = { show_id: '.S' + season_id}
+            else:
+                # If we have no season_id and we are creating this file,
+                # assume seasons are not relevant and use the empty string
+                # as season name.
+                show_season_title_map = { show_id: ''}
+            
             show_item['show_season_title_map'] = show_season_title_map
+            show_season_id_map = { show_id: season_id}
+            show_item['show_season_id_map'] = show_season_id_map
+            
             updated = True
         
         if not show_season_title_map.has_key(show_id):
-            # Let's add this season's default name, 'Show-NNN'
-            show_season_title_map[show_id] = '.Show-' + show_id
+            # First attempt is to name the season using using season_id
+            # to Snn.
+            if season_id != '00':
+                show_season_title_map[show_id] = '.S' + season_id
+            else:
+                # Let's use the fallback: 'Show-nnnn' using show_id.
+                show_season_title_map[show_id] = '.Show-' + show_id
+
+            show_season_id_map[show_id] = season_id
             updated = True
 
         if updated:
@@ -187,6 +205,12 @@ class PlayGrabberSpider(Spider):
         # Get the show short name from the rss link
         show_short_name = sel.xpath("//link[@type='application/rss+xml']/@href").re('http://[^/]*/(.*)/rss.xml')[0]
 
+        # Try to get the season id
+        try:
+            season_id = sel.xpath("//h2[@class='play_videoarea-aside__sub-title']").re('song ([0-9]+)[ \t\n]*-')[0].zfill(2)
+        except:
+            season_id = '00'
+
         # Retrieve the partially filled-in item and append more data
         item = response.meta['episode-item']
 
@@ -196,6 +220,7 @@ class PlayGrabberSpider(Spider):
         item['show_title']         = show_title
         item['episode_id']         = episode_id
         item['episode_short_name'] = episode_short_name
+        item['season_id']          = season_id
 
         # The "?type=embed" extension can really be read from the html code,
         # but it never seems to change so take the easy way out. :-)
@@ -235,7 +260,7 @@ class PlayGrabberSpider(Spider):
             # This is no good as filename, use the short name instead.
             basename_title = item['episode_short_name']
         
-        season_title = self.get_season_title(item['show_id'], item['show_url'], item['output_dir'])
+        season_title = self.get_season_title(item['show_id'], item['season_id'], item['show_url'], item['output_dir'])
         # We assume episode id is the episode number
         # Create an episode basename like this 'ShowName.(Show-xx.)Exx.EpisodeName'
         basename = item['show_title'] + season_title + '.E' + item['episode_id'] + '.' + basename_title
