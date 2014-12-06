@@ -47,6 +47,20 @@ class FilterRecordedPipeline(object):
         return item
 
 class DownloaderPipeline(object):
+        
+    # Return True if we should download subtitles, False otherwise.
+    def should_get_subtitles(self, item, spider):
+        try:
+            output_dir = item['output_dir']
+            with open(output_dir + '/' + spider.show_info_file, 'r') as file:
+                line = file.readline()
+                show_item = json.loads(line)
+                get_subtitles = show_item['get_subtitles']
+                return get_subtitles
+        except:
+            # If the value or file does not exist, assume we should get subtitles
+            return True
+                
     def call_command(self, cmd_line, action_desc, item, spider):
         spider.log('Executing: ' + cmd_line)
         result_code = call(cmd_line, shell=True)
@@ -71,8 +85,11 @@ class DownloaderPipeline(object):
         subtitles_url = item['subtitles_url']
         subtitles_suffix = item['subtitles_suffix']
         if subtitles_url != None:
-            wget_cmd_line = "wget -O '" + output_dir + '/' + basename + '.' + subtitles_suffix + "' '" + subtitles_url + "'"
-            self.call_command(wget_cmd_line, 'download subtitles', item, spider)
+            if self.should_get_subtitles(item, spider):
+                wget_cmd_line = "wget -O '" + output_dir + '/' + basename + '.' + subtitles_suffix + "' '" + subtitles_url + "'"
+                self.call_command(wget_cmd_line, 'download subtitles', item, spider)
+            else:
+                spider.log('Not downloading subtitles from %s' % subtitles_url)
 
         # Then download video
         video_url = item['video_url']

@@ -100,6 +100,7 @@ class PlayGrabberSpider(Spider):
             show_item['show_season_title_map'] = show_season_title_map
             show_season_id_map = { show_id: season_id}
             show_item['show_season_id_map'] = show_season_id_map
+            show_item['get_subtitles'] = True
             
             updated = True
         

@@ -33,3 +33,4 @@ class ShowInfoItem(Item):
     show_url = Field()
     show_season_title_map = Field()
     show_season_id_map = Field()
+    get_subtitles = Field()
