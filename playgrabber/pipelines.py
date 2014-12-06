@@ -4,6 +4,7 @@
 # See: http://doc.scrapy.org/en/latest/topics/item-pipeline.html
 
 import json
+import re
 from subprocess import call
 
 from scrapy.exceptions import DropItem
@@ -11,6 +12,20 @@ from scrapy.exceptions import DropItem
 class FilterRecordedPipeline(object):
     # Download information file name, hidden by default
     info_file = '.playgrabber.json'
+
+    # Return the value of filter_out, or the empty string if no filter exists
+    def get_filter_out(self, item, spider):
+        try:
+            output_dir = item['output_dir']
+            with open(output_dir + '/' + spider.show_info_file, 'r') as file:
+                line = file.readline()
+                show_item = json.loads(line)
+                filter_out = show_item['filter_out']
+                return filter_out
+        except:
+            # If the value or file does not exist, assume we should not filter out
+            # and return an empty filter
+            return ''
 
     def get_recorded_items(self, output_dir):
         # Note: This is inefficient: read and parse the whole json file
@@ -42,6 +57,14 @@ class FilterRecordedPipeline(object):
         recorded_items = self.get_recorded_items(output_dir)
         if self.is_item_in_records(item, recorded_items):
             raise DropItem('Already recorded item, dropping %s:%s.' % (item['show_short_name'], item['episode_short_name']))
+
+        # Check if we should filter out episode based on title
+        filter_out = self.get_filter_out(item, spider)
+        if filter_out != '':
+            # If the filter is not empty, check if it matches
+            if re.search(filter_out, item['episode_title']):
+                # We match. Filter out.
+                raise DropItem('Filtering out item due to match with "%s", dropping %s:%s.' % (filter_out, item['show_short_name'], item['episode_short_name']))
 
         # Otherwise, pass it on to downloaded
         return item
