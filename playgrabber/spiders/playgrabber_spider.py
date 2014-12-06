@@ -74,8 +74,14 @@ class PlayGrabberSpider(Spider):
             spider.log("Downloaded: '%s - %s' as %s/%s.%s" %  (item['show_title'], item['episode_title'], item['output_dir'], item['basename'], item['video_suffix']))
 
     # Return a proper title to apply to this season
-    def get_season_title(self, show_id, season_id, show_url, output_dir):
+    def get_show_and_season_title(self, item):
+        show_id = item['show_id']
+        season_id = item['season_id']
+        show_url= item['show_url']
+        output_dir = item['output_dir']
+
         updated = False
+
         try:
             with open(output_dir + '/' + self.show_info_file, 'r') as file:
                 line = file.readline()
@@ -117,6 +123,17 @@ class PlayGrabberSpider(Spider):
             show_season_id_map[show_id] = season_id
             updated = True
 
+        try:
+            show_title = show_item['show_title']
+            if show_title == '':
+                # This should not happen but treat it as missing value
+                raise
+        except:
+            # Read the value from the [episode] item, if missing from the show_item
+            show_title = item['show_title']
+            show_item['show_title'] = show_title
+            updated = True
+
         if updated:
             # Save it back to disk if needed
             show_item['show_season_title_map'] = show_season_title_map
@@ -132,7 +149,7 @@ class PlayGrabberSpider(Spider):
                 file.write(line)
 
         season_title = show_season_title_map[show_id]
-        return season_title
+        return show_title + season_title
 
     # Default parse method, entry point
     def parse(self, response):
@@ -262,10 +279,12 @@ class PlayGrabberSpider(Spider):
             # This is no good as filename, use the short name instead.
             basename_title = item['episode_short_name']
         
-        season_title = self.get_season_title(item['show_id'], item['season_id'], item['show_url'], item['output_dir'])
+        # Get a suitable show/season title. Typically this is '<show_title>.S<season_id>'
+        show_and_season_title = self.get_show_and_season_title(item)
         # We assume episode id is the episode number
-        # Create an episode basename like this 'ShowName.(Show-xx.)Exx.EpisodeName'
-        basename = item['show_title'] + season_title + '.E' + item['episode_id'] + '.' + basename_title
+        # Append on show/season_title to create an episode basename like this:
+        # 'ShowName.Sxx.Exx.EpisodeName'
+        basename = show_and_season_title + '.E' + item['episode_id'] + '.' + basename_title
         
         item['episode_title']      = episode_title
         item['basename']           = basename
