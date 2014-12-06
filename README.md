@@ -19,8 +19,8 @@ unix-like platforms (like Mac OS X), and more or less painful to get it to work 
 What's it for?
 ==============
 
-PlayGrabber can be used in several ways:
-1. To download all episodes that are available right now for a show on svtplay.se
+PlayGrabber can be used in several ways:  
+1. To download all episodes that are available right now for a show on svtplay.se  
 2. To check a show or collection of show for new episodes, and download them
 
 While 1 is useful, 2 is what makes PlayGrabber shine! The typical usecase is that
@@ -47,7 +47,10 @@ Usage
 =====
 
 To run PlayGrabber, cd to the playgrabber directory and run
-    scrapy crawl playgrabber [options]
+```
+scrapy crawl playgrabber [options]
+```
+
 where options are:
 
 `-a url=<URL>` -- To specify an URL, e.g. `-a url=http://www.svtplay.se/foo-show`
@@ -63,37 +66,45 @@ Hints
 =====
 For efficient use, designate a base directory, e.g. /movies/PlayGrabber. Now you can add the show
 "Foo Show" by 
-    scrapy crawl playgrabber -a base=/movies/PlayGrabber -a url=http://www.svtplay.se/foo-show
+```
+scrapy crawl playgrabber -a base=/movies/PlayGrabber -a url=http://www.svtplay.se/foo-show
+```
 
 PlayGrabber will automatically create a directory based on the name of the show ("Foo Show"), and
 download the available episodes with names like "Foo Show.S01.E01.The mystery begins". Both the video
 (as .mp4) and the subtitles, if available, (as .srt) will be downloaded for each episode.
 
 When this is done, you can at any time check for and download new episodes like this:
-    scrapy crawl playgrabber -a base=/movies/PlayGrabber
+```
+scrapy crawl playgrabber -a base=/movies/PlayGrabber
+```
 
 I recommend you create a simple script to do this for you. For instance, create
-    /usr/local/bin/update-playgrabber.sh with:
-    #!/bin/bash
-    cd /opt/playgrabber
-    TODAY=`date +"%Y-%m-%d"`
-    scrapy crawl playgrabber -a base=/movies/PlayGrabber -o /var/log/playgrabber/$TODAY.json > /var/log/playgrabber/$TODAY.log 2>&1
+`/usr/local/bin/update-playgrabber.sh` with:
+```
+#!/bin/bash
+cd /opt/playgrabber
+TODAY=`date +"%Y-%m-%d"`
+scrapy crawl playgrabber -a base=/movies/PlayGrabber -o /var/log/playgrabber/$TODAY.json > /var/log/playgrabber/$TODAY.log 2>&1
+```
 
 This assumes that you have stored PlayGrabber in /opt/playgrabber, and that the user running the script have write permissions to /var/log/playgrabber.
 It will store logs with downloaded files as *.json and the verbose scrapy output as *.log.
 
 To have this script run at 4 am every night, run 'crontab -e' and add the following line:
-    04 00 * * * /usr/local/bin/update-playgrabber.sh
+```
+04 00 * * * /usr/local/bin/update-playgrabber.sh
+```
 
 Advanced topics
 ===============
 PlayGrabber stores information about the show and downloaded episodes in two hidden files, 
-.playgrabber.json and .playgrabber-show.json. 
+`.playgrabber.json` and `.playgrabber-show.json`.
 
-The file .playgrabber.json contains information about all your downloaded episodes. If you delete this file, PlayGrabber
+The file `.playgrabber.json` contains information about all your downloaded episodes. If you delete this file, PlayGrabber
 will forget about all your downloaded files. Do not do this, unless you really want that to happen.
 
-The file .playgrabber-show.json contains general information about the show. A few fields in this file is possible to edit by
+The file `.playgrabber-show.json` contains general information about the show. A few fields in this file is possible to edit by
 a text editor, to modify the behavior of PlayGrabber for that show:
 
 * show_title: You can modify this to use another name for the show when creating filenames.
@@ -103,12 +114,10 @@ a text editor, to modify the behavior of PlayGrabber for that show:
 
 It is not recommended to modify any other values.
 
-filter_out
-----------
+#### filter_out
 If this is non-empty, it is interpreted as a regex that is matched against the episode name. If it matches, the episode is *not* downloaded. Use this to e.g. filter out "syntolkat".
 
-show\_season\_title\_map
----------------------
+#### show\_season\_title\_map
 svtplay.se does not use season numbering internally, but instead uses a show id. PlayGrabber does some heuristics to
 try to get a good season number to use (or none for shows where season is not applicable), but it can fail sometimes.
 
