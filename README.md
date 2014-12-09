@@ -12,6 +12,9 @@ Requirements
 
 PlayGrabber requires Python and the [Scrapy](http://scrapy.org) web scraping framework.
 
+PlayGrabber needs [ffmpeg](http://www.ffmpeg.org/) to download the videos. It is possible that [libav](http://libav.org/) will work as
+well, but this has not been tested. Furthermore, wget is needed to download the subtitles.
+
 While PlayGrabber should not technically require Linux, it has been developed on Linux
 and only tested on Linux. It is probably more or less painless to get it to work on other
 unix-like platforms (like Mac OS X), and more or less painful to get it to work on Windows.
@@ -62,6 +65,27 @@ where options are:
 `-o <json-output>` -- Store information about downloaded shows as a json file. (This functionality is build-in in scrapy,
 but can often come in handy.)
 
+Limitations
+===========
+
+PlayGrabber is reading the contents of svtplay.se and parsing the HTML code to understand what videos are
+available, what relationship they have, and how they can be downloaded. This approach is fragile by nature,
+and any changes to the structure or format of the svtplay.se web site can disable PlayGrabber from functioning. 
+Such changes can occur at any time, and only a corresponding fix in PlayGrabber will restore functionality.
+
+While there is no guarantee of such updates for future breaking changes in svtplay.se, the author is using
+PlayGrabber personally, and has historically updated PlayGrabber swiftly when such changes happen.
+
+PlayGrabber can only download videos that are allowed to your IP address, and are in the HLS format
+(in practice, this means "available on a mobile platform"). To what extent these limitations apply
+to a specific video is completely determined by svtplay.se. As a rule of thumb, if you can watch the 
+video from a browser running on the same computer as PlayGrabber, you will pass the IP address test. And
+if you can watch the video on a mobile device, it is available in the HLS format.
+
+PlayGrabber is in itself limited to extracting the URL for the video and subtitle, and creating suitable
+command lines for running the ffmpeg and wget downloaders, which will do the actual job of downloading the
+video and the subtitles.
+
 Hints
 =====
 For efficient use, designate a base directory, e.g. /movies/PlayGrabber. Now you can add the show
@@ -91,9 +115,9 @@ scrapy crawl playgrabber -a base=/movies/PlayGrabber -o /var/log/playgrabber/$TO
 This assumes that you have stored PlayGrabber in /opt/playgrabber, and that the user running the script have write permissions to /var/log/playgrabber.
 It will store logs with downloaded files as *.json and the verbose scrapy output as *.log.
 
-To have this script run at 4 am every night, run 'crontab -e' and add the following line:
+To have this script run at 4:00 am every night, run 'crontab -e' and add the following line:
 ```
-04 00 * * * /usr/local/bin/update-playgrabber.sh
+00 04 * * * /usr/local/bin/update-playgrabber.sh
 ```
 
 Advanced topics
@@ -124,3 +148,11 @@ try to get a good season number to use (or none for shows where season is not ap
 If your shows end up named "Foo Show.Show-4711.E01.Wtf", you can change this here. Locate ".Show-4711" in the map,
 and modify it to a better value. Note that you will probably want to keep the leading dot.
 
+Contributions
+=============
+
+PlayGrabber is open source, and is licensed under the GPLv3 license. The main author is
+[magicus](https://github.com/magicus/) and the latest version of PlayGrabber can always
+be found on [this GitHub page](https://github.com/magicus/playgrabber).
+
+Any contributions to PlayGrabber are more than welcome!
