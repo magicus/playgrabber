@@ -110,6 +110,12 @@ class PlayGrabberSpider(Spider):
             show_item['filter_out'] = ''
             
             updated = True
+            
+        try:
+            show_season_id_map = show_item['show_season_id_map']
+        except:
+            show_season_id_map = { show_id: season_id}
+            updated = True
         
         if not show_season_title_map.has_key(show_id):
             # First attempt is to name the season using using season_id
@@ -137,6 +143,7 @@ class PlayGrabberSpider(Spider):
         if updated:
             # Save it back to disk if needed
             show_item['show_season_title_map'] = show_season_title_map
+            show_item['show_season_id_map'] = show_season_id_map
             # First, create output dir if not alreay existing
             mkdir_cmd_line="mkdir -p '" + output_dir + "'"
             self.log('Executing: ' + mkdir_cmd_line)
