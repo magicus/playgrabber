@@ -267,7 +267,7 @@ class PlayGrabberSpider(Spider):
         
         # The data we're looking for is encoded as json in a
         # <object>...<param name="flashvars" value="json={...}">.
-        flashvars_string = sel.xpath("//div[@class='svtFullFrame']/div[@id='player']/object[@class='svtplayer-jsremove']/param[@name='flashvars']/@value").re('json=(.*)')[0]
+        flashvars_string = sel.xpath("//object[@class='svtplayer-jsremove']/param[@name='flashvars']/@value").re('json=(.*)')[0]
         # Parse the string to a json object.
         flashvars_json = json.loads(flashvars_string)
         
