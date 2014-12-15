@@ -161,42 +161,46 @@ class PlayGrabberSpider(Spider):
         # Now extract all episodes and grab each of them
         sel = Selector(response)
         all_episode_urls = sel.xpath("//div[@id='more-episodes-panel']//article/a/@href").extract()
-        # The video_id is in format 'show_id-episode_id'
-        try:
-            show_id = sel.xpath("//a[@id='player']/@data-popularity-program-id").re('([0-9]*)-[0-9]*')[0]
-        except:
-            show_id = '00000'
-
-        # Get the show url from the rss link
-        show_url = sel.xpath("//link[@type='application/rss+xml']/@href").re('(.*)/rss.xml')[0]
-
-        if self.output_dir!=None:
-            # Use the explicit output dir
-            output_dir=self.output_dir
+        
+        if not all_episode_urls:
+            self.log("No episodes available for show %s" % response.url)
         else:
-            # Create a output dir based on a base dir and the show title
-            show_title = sel.xpath("//section[@role='main']/article//h1/text()").extract()[0]
-            output_dir=self.output_base_dir + '/' + show_title
-            
-        requests = []
-        for url in all_episode_urls:
-            request = Request('http://www.svtplay.se' + url, callback=self.parse_single_episode)
-            item = PlayGrabberItem()
-            item['output_dir'] = output_dir
-            item['show_url'] = show_url
-            # Store the original show id (to be able to detect mixing of seasons)
-            item['original_show_id'] = show_id
-            # Pass on the item for further populating
-            request.meta['episode-item'] = item
-            requests.append(request)
-        return requests
+            # The video_id is in format 'show_id-episode_id'
+            try:
+                show_id = sel.xpath("//a[@id='player']/@data-popularity-program-id").re('([0-9]*)-[0-9]*')[0]
+            except:
+                show_id = '00000'
+
+            # Get the show url from the rss link
+            show_url = sel.xpath("//link[@type='application/rss+xml']/@href").re('(.*)/rss.xml')[0]
+
+            if self.output_dir!=None:
+                # Use the explicit output dir
+                output_dir=self.output_dir
+            else:
+                # Create a output dir based on a base dir and the show title
+                show_title = sel.xpath("//h1[@class='play_video-area-aside__title']/text()").extract()[0]
+                output_dir=self.output_base_dir + '/' + show_title
+                
+            requests = []
+            for url in all_episode_urls:
+                request = Request('http://www.svtplay.se' + url, callback=self.parse_single_episode)
+                item = PlayGrabberItem()
+                item['output_dir'] = output_dir
+                item['show_url'] = show_url
+                # Store the original show id (to be able to detect mixing of seasons)
+                item['original_show_id'] = show_id
+                # Pass on the item for further populating
+                request.meta['episode-item'] = item
+                requests.append(request)
+            return requests
 
     def parse_single_episode(self, response):
         # Grab essential data about this episode
         sel = Selector(response)
         
         # First grab show title
-        show_title = sel.xpath("//section[@role='main']/article//h1/text()").extract()[0]
+        show_title = sel.xpath("//h1[@class='play_video-area-aside__title']/text()").extract()[0]
 
         # The video_id is in format 'show_id-episode_id'
         try:
