@@ -174,7 +174,7 @@ class PlayGrabberSpider(Spider):
         else:
             # The video_id is in format 'show_id-episode_id'
             try:
-                show_id = sel.xpath("//a[@id='player']/@data-popularity-program-id").re('([0-9]*)-[0-9]*')[0]
+                show_id = sel.xpath("//section[@role='main']//a/@data-popularity-program-id").re('([0-9]*)-[0-9]*')[0]
             except:
                 show_id = '00000'
 
@@ -211,20 +211,20 @@ class PlayGrabberSpider(Spider):
 
         # The video_id is in format 'show_id-episode_id'
         try:
-            video_id = sel.xpath("//a[@id='player']/@data-popularity-program-id").re('([0-9]*)-([0-9]*)')
+            video_id = sel.xpath("//section[@role='main']//a/@data-popularity-program-id").re('([0-9]*)-([0-9]*)')
             show_id = video_id[0]
             episode_id = video_id[1]
         except:
             show_id = '00000'
             try:
-                episode_id = sel.xpath("//a[@id='player']/@data-json-href").re('/video/(.*)')[0]
+                episode_id = sel.xpath("//section[@role='main']//a/@data-json-href").re('/video/(.*)')[0]
             except:
                 episode_id = '00'
 
         # A nice and robust URL, of the format:
         # http://www.svtplay.se/video/4711/episode-short-name
         try:
-            episode_url = sel.xpath("//a[@id='player']/@data-popularity-url").extract()[0]
+            episode_url = sel.xpath("//section[@role='main']//a/@data-popularity-url").extract()[0]
         except:
             # As fallback, use provided url instead of fancy one.
             episode_url = response.url
@@ -237,7 +237,7 @@ class PlayGrabberSpider(Spider):
 
         # Try to get the season id
         try:
-            season_id = sel.xpath("//h2[@class='play_videoarea-aside__sub-title']").re('song ([0-9]+)[ \t\n]*-')[0].zfill(2)
+            season_id = sel.xpath("//h2[@class='play_video-area-aside__sub-title']").re('song ([0-9]+)[ \t\n]*-')[0].zfill(2)
         except:
             season_id = '00'
 
