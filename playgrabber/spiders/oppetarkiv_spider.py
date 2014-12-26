@@ -161,16 +161,30 @@ class PlayGrabberOppetArkivSpider(Spider):
     # Default parse method, entry point
     def parse(self, response):
         # Call this page again and make sure we get all episodes
-        # FIXME: need to keep checking pages until we get 404
-        all_episodes_url = response.url.split('?')[0] + '?sida=1&sort=tid_stigande'
+        
+        if response.url.startswith("http://www.oppetarkiv.se/etikett/titel/"):
+            show_base_url = response.url
+        else:
+            sel = Selector(response)
+            try:
+                # If this is the page of a single episode, get the base page,
+                # i.e. all videos with the same title tag.
+                show_base_url = sel.xpath("//dl[@class='svtoa-data-list']/dd/a/@href").re("(.*/etikett/titel/.*)")[0]
+            except:
+                raise Exception('Cannot extract a proper show base URL from %s' % response.url)
+
+        # Start at page 1
+        all_episodes_url = show_base_url.split('?')[0] + '?sida=1&sort=tid_stigande'
         return Request(all_episodes_url, callback=self.parse_all_episodes)
 
     def parse_all_episodes(self, response):
+        # Figure out next page of the show base URL
+        old_base_url_parts = re.search("(http://www.oppetarkiv.se/etikett/titel/.*sida=)([0-9]*)(&sort=tid_stigande)", response.url).groups()
+        new_base_url = old_base_url_parts[0] + str(int(old_base_url_parts[1]) + 1) + old_base_url_parts[2]
+        
         # Now extract all episodes and grab each of them
         sel = Selector(response)
         all_episode_urls = sel.xpath("//div[@class='svt-container-main']//h3/a/@href").extract()
-        print "all urls is:"
-        print all_episode_urls
 
         if not all_episode_urls:
             self.log("No episodes available for show %s" % response.url)
@@ -191,8 +205,10 @@ class PlayGrabberOppetArkivSpider(Spider):
                 # Create a output dir based on a base dir and the show title
                 show_title = sel.xpath("//span[@class='svt-heading-l']/text()").extract()[0]
                 output_dir=self.output_base_dir + '/' + show_title
-                
+
             requests = []
+            
+            # Add all found episode urls
             for url in all_episode_urls:
                 self.log("URL is %s" % url)
                 request = Request(url, callback=self.parse_single_episode)
@@ -205,6 +221,11 @@ class PlayGrabberOppetArkivSpider(Spider):
                 # Pass on the item for further populating
                 request.meta['episode-item'] = item
                 requests.append(request)
+
+            # Call ourself again with the next page of the show base URL 
+            request = Request(new_base_url, callback=self.parse_all_episodes)
+            requests.append(request)
+
             return requests
 
     def parse_single_episode(self, response):
