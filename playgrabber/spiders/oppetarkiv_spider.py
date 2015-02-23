@@ -1,6 +1,6 @@
-# playgrabber_spider.py
+# oppetarkiv_spider.py
 #
-# Download all available episodes of a TV show from svtplay.se.
+# Download all available episodes of a TV show from oppetarkiv.se.
 # 
 # Created by magicus <mag@icus.se> 2014-02-25
 #

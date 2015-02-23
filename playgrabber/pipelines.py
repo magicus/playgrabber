@@ -88,7 +88,7 @@ class DownloaderPipeline(object):
         spider.log('Executing: ' + cmd_line)
         result_code = call(cmd_line, shell=True)
         if result_code != 0:
-             raise DropItem('Failed to ' + action_desc + '. Result code: %i, command line: %s, item: %s' % (result_code, cmd_line, item))
+             raise DropItem('Failed to ' + action_desc + '. Result code: %i, command line: %r' % (result_code, cmd_line))
         
     def process_item(self, item, spider):
         if item['video_format'] != 'HLS':
