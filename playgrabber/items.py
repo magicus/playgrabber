@@ -26,6 +26,7 @@ class PlayGrabberItem(Item):
     video_url = Field()
     video_suffix = Field()
     video_format = Field()
+    video_master_url = Field()
 
 class ShowInfoItem(Item):
     # Basic options for PlayGrabber
