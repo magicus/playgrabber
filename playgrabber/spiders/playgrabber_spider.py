@@ -16,6 +16,8 @@ from scrapy.selector import Selector
 from scrapy.http import Request
 
 from scrapy import signals
+from scrapy import log
+
 from scrapy.signalmanager import SignalManager
 from scrapy.xlib.pydispatch import dispatcher
 
