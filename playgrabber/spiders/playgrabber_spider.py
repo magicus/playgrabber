@@ -160,8 +160,20 @@ class PlayGrabberSpider(Spider):
 
     # Default parse method, entry point
     def parse(self, response):
+        sel = Selector(response)
+
+        # If this is a show index page, we need to get the URL for a single episode
+        # (anyone will do, let's take the latest)
+        try:
+            any_episode_base_url = sel.xpath('//a[@class="play_title-page-trailer__start-button"]/@href').extract()[0]
+            any_episode_url = 'http://www.svtplay.se' + any_episode_base_url
+        except:
+            # Otherwise we assume this url is for a single episode and not an index
+            # page, and use it directly
+            any_episode_url = response.url
+            
         # Call this page again and make sure we get all episodes
-        all_episodes_url = response.url.split('?')[0] + '?tab=program&sida=99'
+        all_episodes_url = any_episode_url.split('?')[0] + '?tab=program&sida=99'
         return Request(all_episodes_url, callback=self.parse_all_episodes)
 
     def parse_all_episodes(self, response):
