@@ -330,11 +330,13 @@ class PlayGrabberSpider(Spider):
         video_references = flashvars_json["video"]["videoReferences"]
         # Typically, this array contains two elements, "flash" and "ios".
         # "ios" contains the HLS entry point we need.
+        video_master_url = None
+
         for ref in video_references:
             if ref['playerType'] == 'ios':
                 video_master_url = ref['url']
         
-        if video_master_url:
+        if video_master_url != None:
             item['video_master_url'] = video_master_url
 
             # dont_filter is True, since this is on svtplay*.akamaihd.net, outside allowed_domains.
@@ -343,7 +345,7 @@ class PlayGrabberSpider(Spider):
             request.meta['episode-item'] = item
             return request
         else:
-            raise Exception("Cannot locate video master URL!")
+            raise Exception("Cannot locate video master URL for %s!" % item['basename'])
         
     def parse_master_m3u8(self, response):
         # Retrieve the partially filled-in item
@@ -361,7 +363,7 @@ class PlayGrabberSpider(Spider):
             if re.search(r'RESOLUTION=' + self.target_resolution, line):
                 get_next = True
         if video_url == None:
-            self.log("Cannot locate video URL of requested resolution, using master url", level=log.WARNING)
+            self.log("Cannot locate video URL of requested resolution, using master url for %s" % item['basename'], level=log.WARNING)
             video_url = item['video_master_url']
 
         # Assume mp4 is a good suffix.
