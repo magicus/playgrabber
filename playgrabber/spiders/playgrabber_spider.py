@@ -149,7 +149,7 @@ class PlayGrabberSpider(Spider):
             self.log('Executing: ' + mkdir_cmd_line)
             result_code = call(mkdir_cmd_line, shell=True)
             if result_code != 0:
-                 raise "Failed to create directory " + output_dir
+                 raise Exception("Failed to create directory " + output_dir)
             
             with open(output_dir + '/' + self.show_info_file, 'w') as file:
                 line = json.dumps(dict(show_item)) + '\n'
@@ -333,15 +333,20 @@ class PlayGrabberSpider(Spider):
                 video_master_url = ref['url']
         
         if video_master_url:
+            item['video_master_url'] = video_master_url
+
             # dont_filter is True, since this is on svtplay*.akamaihd.net, outside allowed_domains.
             request = Request(video_master_url, callback=self.parse_master_m3u8, dont_filter=True)
             # Pass on the item for further populating
             request.meta['episode-item'] = item
             return request
         else:
-            raise("Cannot locate video master URL!")
+            raise Exception("Cannot locate video master URL!")
         
     def parse_master_m3u8(self, response):
+        # Retrieve the partially filled-in item
+        item = response.meta['episode-item']
+
         # Now we got ourself an m3u8 (m3u playlist in utf-8) file in 
         # the response. The URL we're looking for is preceeded by a 
         # comment stating the proper resolution.
@@ -354,14 +359,15 @@ class PlayGrabberSpider(Spider):
             if re.search(r'RESOLUTION=' + self.target_resolution, line):
                 get_next = True
         if video_url == None:
-            raise("Cannot locate video URL of requested resolution")
+            self.log("Cannot locate video URL of requested resolution, using master url", level=log.WARNING)
+            video_url = item['video_master_url']
 
         # Assume mp4 is a good suffix.
         video_suffix = 'mp4'
         # We've been parsing HLS all along.
         video_format = 'HLS'
         
-        # Retrieve the partially filled-in item and complete it
+        # Complete the partially filled-in item
         item = response.meta['episode-item']
         item['video_url']        = video_url        
         item['video_suffix']     = video_suffix        
