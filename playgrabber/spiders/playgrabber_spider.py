@@ -186,7 +186,7 @@ class PlayGrabberSpider(Spider):
                 output_dir=self.output_dir
             else:
                 # Create a output dir based on a base dir and the show title
-                show_title = sel.xpath("//h1[@class='play_video-area-aside__title']/text()").extract()[0]
+                show_title = sel.xpath("//div[@class='play_video-area-aside__info']/h1/a/text()").extract()[0]
                 output_dir=self.output_base_dir + '/' + show_title
                 
             requests = []
@@ -207,7 +207,7 @@ class PlayGrabberSpider(Spider):
         sel = Selector(response)
         
         # First grab show title
-        show_title = sel.xpath("//h1[@class='play_video-area-aside__title']/text()").extract()[0]
+        show_title = sel.xpath("//div[@class='play_video-area-aside__info']/h1/a/text()").extract()[0]
 
         # The video_id is in format 'show_id-episode_id'
         try:
