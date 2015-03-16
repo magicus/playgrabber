@@ -29,7 +29,6 @@ from playgrabber.pipelines import FilterRecordedPipeline
 class PlayGrabberSpider(Spider):
     name = 'playgrabber'
     allowed_domains = ['svtplay.se']
-    target_resolution = '1280x720'
 
     # Download information file name, hidden by default
     show_info_file = '.playgrabber-show.json'    
@@ -352,19 +351,29 @@ class PlayGrabberSpider(Spider):
         item = response.meta['episode-item']
 
         # Now we got ourself an m3u8 (m3u playlist in utf-8) file in 
-        # the response. The URL we're looking for is preceeded by a 
-        # comment stating the proper resolution.
-        get_next = False
+        # the response. We will aim to get the stream with the highest bandwidth
+        # requirement, believing it to be of best quality.
+        highest_bandwidth = 0
+        next_bandwidth = 0
         video_url = None
+        
         for line in response.body.splitlines():
-            if get_next:
+            stream_description_match = re.search(r'^#EXT-X-STREAM-INF:.*BANDWIDTH=([0-9]+),', line)
+            if stream_description_match:
+                next_bandwidth = int(stream_description_match.group(1))
+                if next_bandwidth >= highest_bandwidth:
+                    highest_bandwidth = next_bandwidth
+                    hls_stream_description = line
+                else:
+                    next_bandwidth = 0
+            elif next_bandwidth != 0:
                 video_url = line
-                break
-            if re.search(r'RESOLUTION=' + self.target_resolution, line):
-                get_next = True
+
         if video_url == None:
-            self.log("Cannot locate video URL of requested resolution, using master url for %s" % item['basename'], level=log.WARNING)
+            self.log("Cannot locate a suitable video URL, using master url for %s" % item['basename'], level=log.WARNING)
             video_url = item['video_master_url']
+        else:
+            self.log("Located video for %s with the following HLS description: %s" % (item['basename'], hls_stream_description))
 
         # Assume mp4 is a good suffix.
         video_suffix = 'mp4'
