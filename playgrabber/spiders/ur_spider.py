@@ -225,6 +225,7 @@ class PlayGrabberUrSpider(Spider):
         init_data_string =  sel.xpath("//script/text()").re('urPlayer.init\((.*)\)')[0]
         # Parse the string to a json object.
         init_data = json.loads(init_data_string)
+        self.log('UR json data: %s' % init_data)
 
         # First grab show id and title (again...)
         try:
@@ -241,7 +242,7 @@ class PlayGrabberUrSpider(Spider):
 
         # Not all videos has an episode id
         try:
-            episode_id = sel.xpath("//div[@id='Mer-om-programmet']/h3[@class='episode-info']/text()").re('Avsnitt ([0-9]+)')[0].zfill(2)
+            episode_id = sel.xpath("//div[@id='Om-programmet-content']//h3[@property='schema:partOfSeries']/text()").re('Avsnitt ([0-9]+)')[0].zfill(2)
         except:
             # Otherwise use the video id
             episode_id = str(init_data['id']).zfill(2)
@@ -261,11 +262,11 @@ class PlayGrabberUrSpider(Spider):
         show_short_name = sel.xpath("//header[@class='video']//a/@href").re("/Produkter/(.*)")[0]
 
         # Get the episode title
-        episode_title = sel.xpath("//div[@id='Mer-om-programmet']/h2/span[@property='schema:name']/text()").extract()[0]
+        episode_title = sel.xpath("//meta[@property='schema:name']/@content").extract()[0]
 
         # Try to get the season id
         try:
-            season_id = sel.xpath("//div[@id='Mer-om-programmet']/h2/span[@property='schema:name']/text()").re('S.song ([0-9]+)')[0].zfill(2)
+            season_id = sel.xpath("//meta[@property='schema:name']/@content").re('S.song ([0-9]+)')[0].zfill(2)
         except:
             season_id = '00'
 
@@ -274,24 +275,38 @@ class PlayGrabberUrSpider(Spider):
         if all_subtitles == "":
             subtitles_url = None
         else:
-            # We just keep the first subtitle, hoping it's the one we want.
-            subtitles_url = all_subtitles.split(',')[0]
+            # Check if this is new format
+            if isinstance(all_subtitles, list):
+                subtitles_url = all_subtitles[0]['file']
+            else:
+                # We just keep the first subtitle, hoping it's the one we want.
+                subtitles_url = all_subtitles.split(',')[0]
 
         # Assume format is .tt
         subtitles_suffix = 'tt'
 
-        # Create the video url
-        if not init_data['file_html5_hd'] == "" and self.prefer_hd:
-            # If we have a HD stream, use it
-            video_base_name = init_data['file_html5_hd']
+        # Create the video url. First check new format:
+        if init_data['subtitled_files'][0]:
+            if not init_data['subtitled_files'][0]['file_http_hd'] == "" and self.prefer_hd:
+                # If we have a HD stream, use it
+                video_base_name = init_data['subtitled_files'][0]['file_http_hd']
+            else:
+                video_base_name = init_data['subtitled_files'][0]['file_http']
         else:
-            video_base_name = init_data['file_html5']
+            # Fallback to old format
+            if not init_data['file_html5_hd'] == "" and self.prefer_hd:
+                # If we have a HD stream, use it
+                video_base_name = init_data['file_html5_hd']
+            else:
+                video_base_name = init_data['file_html5']
+        if video_base_name == "":
+            raise Exception('Could not extract video_base_name')
 
-        video_loadbalancer_ip = init_data['streaming_config']['streamer']['redirect']
+        video_loadbalancer_hostname = init_data['streaming_config']['streamer']['redirect']
         video_hls_filename = init_data['streaming_config']['http_streaming']['hls_file']
 
         # ... and combine these into a winner!
-        video_url = 'http://' + video_loadbalancer_ip + '/' + video_base_name + video_hls_filename
+        video_url = 'http://' + video_loadbalancer_hostname + '/' + video_base_name + video_hls_filename
 
         # Assume mp4 is a good suffix.
         video_suffix = 'mp4'
