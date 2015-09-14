@@ -285,20 +285,12 @@ class PlayGrabberUrSpider(Spider):
         # Assume format is .tt
         subtitles_suffix = 'tt'
 
-        # Create the video url. First check new format:
-        if init_data['subtitled_files'][0]:
-            if not init_data['subtitled_files'][0]['file_http_hd'] == "" and self.prefer_hd:
-                # If we have a HD stream, use it
-                video_base_name = init_data['subtitled_files'][0]['file_http_hd']
-            else:
-                video_base_name = init_data['subtitled_files'][0]['file_http']
+        # Create the video url.
+        if not init_data['file_http_hd'] == "" and self.prefer_hd:
+            # If we have a HD stream, use it
+            video_base_name = init_data['file_http_hd']
         else:
-            # Fallback to old format
-            if not init_data['file_html5_hd'] == "" and self.prefer_hd:
-                # If we have a HD stream, use it
-                video_base_name = init_data['file_html5_hd']
-            else:
-                video_base_name = init_data['file_html5']
+            video_base_name = init_data['file_http']
         if video_base_name == "":
             raise Exception('Could not extract video_base_name')
 
