@@ -282,8 +282,8 @@ class PlayGrabberUrSpider(Spider):
                 # We just keep the first subtitle, hoping it's the one we want.
                 subtitles_url = all_subtitles.split(',')[0]
 
-        # Assume format is .tt
-        subtitles_suffix = 'tt'
+        # Assume format is ttml
+        subtitles_suffix = 'ttml'
 
         # Create the video url.
         if not init_data['file_http_hd'] == "" and self.prefer_hd:
