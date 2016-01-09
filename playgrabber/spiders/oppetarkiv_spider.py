@@ -170,6 +170,8 @@ class PlayGrabberOppetArkivSpider(Spider):
                 # If this is the page of a single episode, get the base page,
                 # i.e. all videos with the same title tag.
                 show_base_url = sel.xpath("//dl[@class='svtoa-data-list']/dd/a/@href").re("(.*/etikett/titel/.*)")[0]
+                if not show_base_url.startswith("http://www.oppetarkiv.se"):
+                    show_base_url = 'http://www.oppetarkiv.se' + show_base_url
             except:
                 raise Exception('Cannot extract a proper show base URL from %s' % response.url)
 
@@ -184,7 +186,14 @@ class PlayGrabberOppetArkivSpider(Spider):
         
         # Now extract all episodes and grab each of them
         sel = Selector(response)
-        all_episode_urls = sel.xpath("//div[@class='svt-container-main']//h3/a/@href").extract()
+        all_episode_bases = sel.xpath("//div[@role='main']/section//h2/a/@href").extract()
+        if not all_episode_bases[0].startswith("http://www.oppetarkiv.se"):
+          all_episode_urls = []
+          for base in all_episode_bases:
+            episode_url = 'http://www.oppetarkiv.se' + base
+            all_episode_urls.append(episode_url)
+        else:
+          all_episode_urls = all_episode_bases
 
         if not all_episode_urls:
             self.log("No episodes available for show %s" % response.url)
@@ -193,7 +202,8 @@ class PlayGrabberOppetArkivSpider(Spider):
             original_show_id = '00000'
 
             # Get the show short name 
-            show_short_name = sel.xpath("//head/title/text()").re("([^ ]*)")[0]
+            url_name_parts = re.search("(http://www.oppetarkiv.se/etikett/titel/)([^/]*)(/\?sida=.*)", response.url).groups()
+            show_short_name = url_name_parts[1]
 
             # Construct the show URL using short name and well-known prefix
             show_url = "http://www.oppetarkiv.se/etikett/titel/" + show_short_name
@@ -203,7 +213,7 @@ class PlayGrabberOppetArkivSpider(Spider):
                 output_dir=self.output_dir
             else:
                 # Create a output dir based on a base dir and the show title
-                show_title = sel.xpath("//span[@class='svt-heading-l']/text()").extract()[0]
+                show_title = sel.xpath("//head/meta[@property='og:title']/@content").re('([^|]*) | [^|]*|.*')[0]
                 output_dir=self.output_base_dir + '/' + show_title
 
             requests = []
@@ -234,12 +244,12 @@ class PlayGrabberOppetArkivSpider(Spider):
         
         # First grab show title and season
         try:
-            show_title_and_season_id = sel.xpath("//h1[@class='svt-heading-l svt-text-margin-medium']/span[@class='svt-vignette-default svt-text-margin-small svt-display-block']/text()").re("[\n\t ]*(.*) - S.*song ([0-9]*)[\n\t ]*")
+            show_title_and_season_id = sel.xpath("//header[@class='svtoa_video-area__header']/h1/span[@class='svt-text-margin-extra-small svt-display-block']/text()").re("[\n\t ]*(.*) - S.*song ([0-9]*)[\n\t ]*")
             show_title = show_title_and_season_id[0]
             season_id = show_title_and_season_id[1].zfill(2)
         except:
             # Assume no season specified
-            show_title = sel.xpath("//h1[@class='svt-heading-l svt-text-margin-medium']/span[@class='svt-vignette-default svt-text-margin-small svt-display-block']/text()").re("[\n\t ]*(.*)[\n\t ]*")[0]
+            show_title = sel.xpath("//header[@class='svtoa_video-area__header']/h1/span[@class='svt-text-margin-extra-small svt-display-block']/text()").re("[\n\t ]*(.*)[\n\t ]*")[0]
             season_id = '00'
 
         # We don't have access to the show_id here. As a safety measure, use the video id.
@@ -247,10 +257,10 @@ class PlayGrabberOppetArkivSpider(Spider):
         show_id = sel.xpath("//a[@id='player']/@data-id").extract()[0]
 
         try:
-            episode_id = sel.xpath("//h1[@class='svt-heading-l svt-text-margin-medium']/text()").re("Avsnitt ([0-9]*) av*")[0].zfill(2)
+            episode_id = sel.xpath("//header[@class='svtoa_video-area__header']/h1/span[@class='svt-heading-s svt-display-block']/text()").re("Avsnitt ([0-9]*) av*")[0].zfill(2)
         except:
             try:
-                episode_id = sel.xpath("//h1[@class='svt-heading-l svt-text-margin-medium']/text()").re("Del ([0-9]*) av*")[0].zfill(2)
+                episode_id = sel.xpath("//header[@class='svtoa_video-area__header']/h1/span[@class='svt-heading-s svt-display-block']/text()").re("Del ([0-9]*) av*")[0].zfill(2)
             except:
                 episode_id = '00'
 
