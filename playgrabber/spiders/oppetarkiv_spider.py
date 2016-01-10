@@ -200,6 +200,10 @@ class PlayGrabberOppetArkivSpider(Spider):
           all_episode_urls.remove(new_base_url)
         except:
           pass
+          
+        for test_url in all_episode_urls:
+          if re.search("&sort=tid_stigande&dir=-1", test_url):
+            all_episode_urls.remove(test_url)
 
         if not all_episode_urls:
             self.log("No episodes available for show %s" % response.url)
