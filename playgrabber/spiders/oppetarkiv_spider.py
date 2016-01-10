@@ -195,6 +195,12 @@ class PlayGrabberOppetArkivSpider(Spider):
         else:
           all_episode_urls = all_episode_bases
 
+        try:
+          # Sometimes the link to next page is picked up in our link to episodes
+          all_episode_urls.remove(new_base_url)
+        except:
+          pass
+
         if not all_episode_urls:
             self.log("No episodes available for show %s" % response.url)
         else:
