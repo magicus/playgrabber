@@ -208,7 +208,7 @@ class PlayGrabberOppetArkivSpider(Spider):
             original_show_id = '00000'
 
             # Get the show short name 
-            url_name_parts = re.search("(http://www.oppetarkiv.se/etikett/titel/)([^/]*)(/\?sida=.*)", response.url).groups()
+            url_name_parts = re.search("(http://www.oppetarkiv.se/etikett/titel/)([^/\?]*)(/?\?sida=.*)", response.url).groups()
             show_short_name = url_name_parts[1]
 
             # Construct the show URL using short name and well-known prefix
