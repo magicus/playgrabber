@@ -186,7 +186,7 @@ class PlayGrabberOppetArkivSpider(Spider):
         
         # Now extract all episodes and grab each of them
         sel = Selector(response)
-        all_episode_bases = sel.xpath("//div[@role='main']/section//h2/a/@href").extract()
+        all_episode_bases = sel.xpath("//div[@role='main']/section//a/@href").extract()
         if not all_episode_bases[0].startswith("http://www.oppetarkiv.se"):
           all_episode_urls = []
           for base in all_episode_bases:
@@ -249,8 +249,12 @@ class PlayGrabberOppetArkivSpider(Spider):
             season_id = show_title_and_season_id[1].zfill(2)
         except:
             # Assume no season specified
-            show_title = sel.xpath("//header[@class='svtoa_video-area__header']/h1/span[@class='svt-text-margin-extra-small svt-display-block']/text()").re("[\n\t ]*(.*)[\n\t ]*")[0]
-            season_id = '00'
+            try:
+                show_title = sel.xpath("//header[@class='svtoa_video-area__header']/h1/span[@class='svt-text-margin-extra-small svt-display-block']/text()").re("[\n\t ]*(.*)[\n\t ]*")[0]
+                season_id = '00'
+            except:
+                show_title = sel.xpath("//header[@class='svtoa_video-area__header']/h1/text()").re("[\n\t ]*(.*)[\n\t ]*")[0]
+                season_id = '00'
 
         # We don't have access to the show_id here. As a safety measure, use the video id.
         # Hopefully we can overwrite this when we have flashvars.
