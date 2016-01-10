@@ -224,7 +224,7 @@ class PlayGrabberSpider(Spider):
 
         # The video_id is in format 'show_id-episode_id'
         try:
-            video_id = sel.xpath("//section[@role='main']//a/@data-popularity-program-id").re('([0-9]*)-([0-9]*)')
+            video_id = sel.xpath("//section[@role='main']//span/@data-popularity-program-id").re('([0-9]*)-([0-9]*)')
             show_id = video_id[0]
             episode_id = video_id[1]
         except:
