@@ -1,7 +1,7 @@
 # playgrabber_spider.py
 #
 # Download all available episodes of a TV show from svtplay.se.
-# 
+#
 # Created by magicus <mag@icus.se> 2014-02-25
 #
 # -*- coding: utf-8 -*-
@@ -31,7 +31,7 @@ class PlayGrabberSpider(Spider):
     allowed_domains = ['svtplay.se']
 
     # Download information file name, hidden by default
-    show_info_file = '.playgrabber-show.json'    
+    show_info_file = '.playgrabber-show.json'
 
     def find_shows_in_base(self, base):
         urls = []
@@ -45,8 +45,8 @@ class PlayGrabberSpider(Spider):
             except:
                 raise "Failed to open show info file: " + filename
         return urls
-            
-    # Accepted argument: 
+
+    # Accepted argument:
     #  'url'  = svtplay.se start URL
     #  'out'  = output directory to store downloaded files in
     #  'base' = base directory in which to create output directory based
@@ -54,7 +54,7 @@ class PlayGrabberSpider(Spider):
     def __init__(self, url=None, out=None, base=None, *args, **kwargs):
         super(PlayGrabberSpider, self).__init__(*args, **kwargs)
         SignalManager(dispatcher.Any).connect(self.closed_handler, signal=signals.spider_closed)
-        if out==None and base==None: 
+        if out==None and base==None:
             raise Exception('Must provide argument "-a out=..." or "-a base=..."')
         if out!=None and base!=None:
             raise Exception('Cannot provide both argument "-a out=..." and "-a base=..."')
@@ -103,21 +103,21 @@ class PlayGrabberSpider(Spider):
                 # assume seasons are not relevant and use the empty string
                 # as season name.
                 show_season_title_map = { show_id: ''}
-            
+
             show_item['show_season_title_map'] = show_season_title_map
             show_season_id_map = { show_id: season_id}
             show_item['show_season_id_map'] = show_season_id_map
             show_item['get_subtitles'] = True
             show_item['filter_out'] = ''
-            
+
             updated = True
-            
+
         try:
             show_season_id_map = show_item['show_season_id_map']
         except:
             show_season_id_map = { show_id: season_id}
             updated = True
-        
+
         if not show_season_title_map.has_key(show_id):
             # First attempt is to name the season using using season_id
             # to Snn.
@@ -151,7 +151,7 @@ class PlayGrabberSpider(Spider):
             result_code = call(mkdir_cmd_line, shell=True)
             if result_code != 0:
                  raise Exception("Failed to create directory " + output_dir)
-            
+
             with open(output_dir + '/' + self.show_info_file, 'w') as file:
                 line = json.dumps(dict(show_item)) + '\n'
                 file.write(line)
@@ -172,7 +172,7 @@ class PlayGrabberSpider(Spider):
             # Otherwise we assume this url is for a single episode and not an index
             # page, and use it directly
             any_episode_url = response.url
-            
+
         # Call this page again and make sure we get all episodes
         all_episodes_url = any_episode_url.split('?')[0] + '?tab=program&sida=99'
         return Request(all_episodes_url, callback=self.parse_all_episodes)
@@ -181,7 +181,7 @@ class PlayGrabberSpider(Spider):
         # Now extract all episodes and grab each of them
         sel = Selector(response)
         all_episode_urls = sel.xpath("//div[@id='more-episodes-panel']//article/a/@href").extract()
-        
+
         if not all_episode_urls:
             self.log("No episodes available for show %s" % response.url)
         else:
@@ -201,7 +201,7 @@ class PlayGrabberSpider(Spider):
                 # Create a output dir based on a base dir and the show title
                 show_title = sel.xpath("//div[@class='play_video-area-aside__info']/h1/a/text()").extract()[0]
                 output_dir=self.output_base_dir + '/' + show_title
-                
+
             requests = []
             for url in all_episode_urls:
                 request = Request('http://www.svtplay.se' + url, callback=self.parse_single_episode)
@@ -218,9 +218,10 @@ class PlayGrabberSpider(Spider):
     def parse_single_episode(self, response):
         # Grab essential data about this episode
         sel = Selector(response)
-        
+
         # First grab show title
         show_title = sel.xpath("//div[@class='play_video-area-aside__info']/h1/a/text()").extract()[0]
+        unique_video_id = sel.xpath("//video/@data-video-id").extract()[0]
 
         # The video_id is in format 'show_id-episode_id'
         try:
@@ -244,7 +245,7 @@ class PlayGrabberSpider(Spider):
 
         # A computer-friendly short version of the title, suitable to use as filename etc.
         episode_short_name = episode_url.split('/')[-1]
-        
+
         # Get the show short name from the rss link
         show_short_name = sel.xpath("//link[@type='application/rss+xml']/@href").re('http://[^/]*/(.*)/rss.xml')[0]
 
@@ -257,6 +258,7 @@ class PlayGrabberSpider(Spider):
         # Retrieve the partially filled-in item and append more data
         item = response.meta['episode-item']
 
+        item['unique_video_id']    = unique_video_id
         item['episode_url']        = episode_url
         item['show_id']            = show_id
         item['show_short_name']    = show_short_name
@@ -265,31 +267,32 @@ class PlayGrabberSpider(Spider):
         item['episode_short_name'] = episode_short_name
         item['season_id']          = season_id
 
-        # The "?type=embed" extension can really be read from the html code,
-        # but it never seems to change so take the easy way out. :-)
-        # With the embedded version, the "flashvars" are available which
-        # will point to the HLS stream.
-        request = Request(episode_url + '?type=embed', callback=self.parse_flashvars)
+        # Retrieve the json data structure for this video
+        json_base_url = 'http://www.svt.se/videoplayer-api/video/'
+
+        # dont_filter is True, since this is on svt.se, outside allowed_domains.
+        request = Request(json_base_url + unique_video_id, callback=self.parse_json, dont_filter=True)
         # Pass on the item for further populating
         request.meta['episode-item'] = item
-        
+
         return request
 
-    def parse_flashvars(self, response):
-        sel = Selector(response)
-        
-        # The data we're looking for is encoded as json in a
-        # <object>...<param name="flashvars" value="json={...}">.
-        flashvars_string = sel.xpath("//object[@class='svtplayer-jsremove']/param[@name='flashvars']/@value").re('json=(.*)')[0]
+    def parse_json(self, response):
+        json_string = response.body
+
         # Parse the string to a json object.
-        flashvars_json = json.loads(flashvars_string)
-        
+        episode_json = json.loads(json_string)
+
         # Retrieve the partially filled-in item and append more data
         item = response.meta['episode-item']
 
+        # Some relevant fields that we're currently ignoring:
+        # episode_json['programVersionId'] -- should match unique_video_id
+        # episode_json['programTitle'] -- should match show_title
+
         # Get the episode title
         try:
-            episode_title = flashvars_json["context"]["title"]
+            episode_title = episode_json['episodeTitle']
             if episode_title == "":
                 episode_title = None
         except:
@@ -297,44 +300,55 @@ class PlayGrabberSpider(Spider):
 
         ## Calculate a suitable base name
         basename_title = episode_title
-        if episode_title == None or re.search(r'/', basename_title):
-            # The episode has no real title, just a 'day/month [hour:minute]' fake title,
-            # or another title with a slash. 
-            # This is no good as filename, use the short name instead.
-            basename_title = item['episode_short_name']
-        
+
         # Get a suitable show/season title. Typically this is '<show_title>.S<season_id>'
         show_and_season_title = self.get_show_and_season_title(item)
         # We assume episode id is the episode number
         # Append on show/season_title to create an episode basename like this:
         # 'ShowName.Sxx.Exx.EpisodeName'
         basename = show_and_season_title + '.E' + item['episode_id'] + '.' + basename_title
-        
+
         item['episode_title']      = episode_title
         item['basename']           = basename
 
         # Now locate subtitles
         try:
-            subtitles_url = flashvars_json["video"]["subtitleReferences"][0]["url"]
-            if subtitles_url == "":
-                subtitles_url = None
+            all_subtitles = episode_json['subtitleReferences']
+            subtitles_url = None
+
+            # Try to get a srt sub first
+            for sub_type in all_subtitles:
+              if sub_type['format'] == 'websrt':
+                subtitles_url = sub_type['url']
+                subtitles_suffix = 'srt'
+
+            # ... then a vtt
+            if not subtitles_url:
+              for sub_type in all_subtitles:
+                if sub_type['format'] == 'vtt':
+                  subtitles_url = sub_type['url']
+                  subtitles_suffix = 'vtt'
+
+            if not subtitles_url:
+              subtitles_url = all_subtitles[0]['url']
+              subtitles_suffix = all_subtitles[0]['format']
+
         except:
             subtitles_url = None
-        # Assume format is .srt
-        subtitles_suffix = 'srt'
-        
-        item['subtitles_url']    = subtitles_url        
-        item['subtitles_suffix'] = subtitles_suffix        
+            subtitles_suffix = ''
 
-        video_references = flashvars_json["video"]["videoReferences"]
+        item['subtitles_url']    = subtitles_url
+        item['subtitles_suffix'] = subtitles_suffix
+
+        video_references = episode_json["videoReferences"]
         # Typically, this array contains two elements, "flash" and "ios".
         # "ios" contains the HLS entry point we need.
         video_master_url = None
 
         for ref in video_references:
-            if ref['playerType'] == 'ios':
+            if ref['format'] == 'hls':
                 video_master_url = ref['url']
-        
+
         if video_master_url != None:
             item['video_master_url'] = video_master_url
 
@@ -345,18 +359,18 @@ class PlayGrabberSpider(Spider):
             return request
         else:
             raise Exception("Cannot locate video master URL for %s!" % item['basename'])
-        
+
     def parse_master_m3u8(self, response):
         # Retrieve the partially filled-in item
         item = response.meta['episode-item']
 
-        # Now we got ourself an m3u8 (m3u playlist in utf-8) file in 
+        # Now we got ourself an m3u8 (m3u playlist in utf-8) file in
         # the response. We will aim to get the stream with the highest bandwidth
         # requirement, believing it to be of best quality.
         highest_bandwidth = 0
         next_bandwidth = 0
         video_url = None
-        
+
         for line in response.body.splitlines():
             stream_description_match = re.search(r'^#EXT-X-STREAM-INF:.*BANDWIDTH=([0-9]+),', line)
             if stream_description_match:
@@ -379,10 +393,10 @@ class PlayGrabberSpider(Spider):
         video_suffix = 'mp4'
         # We've been parsing HLS all along.
         video_format = 'HLS'
-        
+
         # Complete the partially filled-in item
         item = response.meta['episode-item']
-        item['video_url']        = video_url        
-        item['video_suffix']     = video_suffix        
-        item['video_format']     = video_format        
+        item['video_url']        = video_url
+        item['video_suffix']     = video_suffix
+        item['video_format']     = video_format
         return item

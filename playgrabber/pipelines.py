@@ -43,10 +43,16 @@ class FilterRecordedPipeline(object):
         return recorded_items
 
     def is_item_in_records(self, item, recorded_items):
-        # Note: This is an inefficient linear search. Should be enough 
+        # Note: This is an inefficient linear search. Should be enough
         # for now, though.
         for i in recorded_items:
-            # Consider it a match if show and episode id matches.
+            # Best match is if unique_video_id matches, but older videos may
+            # not have that field.
+            if i['unique_video_id']:
+              if i['unique_video_id'] == item['unique_video_id']:
+                return True
+
+            # As a fallback, consider it a match if show and episode id matches.
             if i['show_id'] == item['show_id'] and i['episode_id'] == item['episode_id']:
                 return True
         return False
@@ -70,7 +76,7 @@ class FilterRecordedPipeline(object):
         return item
 
 class DownloaderPipeline(object):
-        
+
     # Return True if we should download subtitles, False otherwise.
     def should_get_subtitles(self, item, spider):
         try:
@@ -83,27 +89,27 @@ class DownloaderPipeline(object):
         except:
             # If the value or file does not exist, assume we should get subtitles
             return True
-                
+
     def call_command(self, cmd_line, action_desc, item, spider):
         spider.log('Executing: ' + cmd_line)
         result_code = call(cmd_line, shell=True)
         if result_code != 0:
              raise DropItem('Failed to ' + action_desc + '. Result code: %i, command line: %r' % (result_code, cmd_line))
-        
+
     def process_item(self, item, spider):
         if item['video_format'] != 'HLS':
              raise DropItem('Video format unknown: %s' % item)
 
         # Extract basename
         basename = item['basename']
-        
+
         # Command lines to run to download this data.
-        
+
         # First, create output dir if not alreay existing
         output_dir = item['output_dir']
         mkdir_cmd_line="mkdir -p '" + output_dir + "'"
         self.call_command(mkdir_cmd_line, 'create output directory', item, spider)
-        
+
         # Then download subtitles if available
         subtitles_url = item['subtitles_url']
         subtitles_suffix = item['subtitles_suffix']
@@ -130,7 +136,7 @@ class RecordDownloadedPipeline(object):
     def record_item(self, item):
         # At this point, we can be sure that the output dir is alreay existing
         self.stored_items.append(item)
-        output_dir = item['output_dir']        
+        output_dir = item['output_dir']
         with open(output_dir + '/' + self.info_file, 'a') as file:
             line = json.dumps(dict(item)) + '\n'
             file.write(line)
