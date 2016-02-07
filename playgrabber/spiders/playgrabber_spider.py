@@ -223,11 +223,11 @@ class PlayGrabberSpider(Spider):
         show_title = sel.xpath("//div[@class='play_video-area-aside__info']/h1/a/text()").extract()[0]
         unique_video_id = sel.xpath("//video/@data-video-id").extract()[0]
 
-        # The video_id is in format 'show_id-episode_id'
+        # The video_id is in format 'show_id-episode_idX' (where X normally is A)
         try:
-            video_id = sel.xpath("//section[@role='main']//span/@data-popularity-program-id").re('([0-9]*)-([0-9]*)')
+            video_id = sel.xpath("//video/@data-video-id").re('([0-9]*)-([0-9]*)')
             show_id = video_id[0]
-            episode_id = video_id[1]
+            episode_id = str(int(video_id[1])).zfill(2)
         except:
             show_id = '00000'
             try:
