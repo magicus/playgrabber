@@ -48,7 +48,7 @@ class FilterRecordedPipeline(object):
         for i in recorded_items:
             # Best match is if unique_video_id matches, but older videos may
             # not have that field.
-            if i['unique_video_id']:
+            if 'unique_video_id' in i:
               if i['unique_video_id'] == item['unique_video_id']:
                 return True
 
