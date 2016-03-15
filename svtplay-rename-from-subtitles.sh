@@ -16,8 +16,8 @@ if [[ ! -f title-suggestions.txt ]]; then
   echo "Please verify title-suggestions.txt and run this script again"
   cat title-suggestions.txt
 else
-  sed -e 's/\(.*\.E[0-9][0-9]\.\)\(.*\)\.srt-\(.*\)\r$/mv "\1\2.mp4" "\1\3.mp4"/' title-suggestions.txt > title-script.sh
-  sed -e 's/\(.*\.E[0-9][0-9]\.\)\(.*\)\.srt-\(.*\)\r$/mv "\1\2.srt" "\1\3.srt"/' title-suggestions.txt >> title-script.sh
+  sed -e 's/\(.*\.E[0-9][0-9]*\.\)\(.*\)\.srt-\(.*\)\r$/mv "\1\2.mp4" "\1\3.mp4"/' title-suggestions.txt > title-script.sh
+  sed -e 's/\(.*\.E[0-9][0-9]*\.\)\(.*\)\.srt-\(.*\)\r$/mv "\1\2.srt" "\1\3.srt"/' title-suggestions.txt >> title-script.sh
   echo "Renaming files for $BASE_SHOW_NAME"
   . title-script.sh
   rm title-script.sh
