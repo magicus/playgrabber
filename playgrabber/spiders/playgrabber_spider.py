@@ -174,42 +174,33 @@ class PlayGrabberSpider(Spider):
             any_episode_url = response.url
 
         # Call this page again and make sure we get all episodes
-        all_episodes_url = any_episode_url.split('?')[0] + '?tab=program&sida=99'
+        all_episodes_url = any_episode_url.split('?')[0] + '?tab=senast'
         return Request(all_episodes_url, callback=self.parse_all_episodes)
 
     def parse_all_episodes(self, response):
         # Now extract all episodes and grab each of them
         sel = Selector(response)
-        all_episode_urls = sel.xpath("//div[@id='more-episodes-panel']//article/a/@href").extract()
+        all_episode_urls = sel.xpath("//li/article/a/@href").extract()
 
         if not all_episode_urls:
             self.log("No episodes available for show %s" % response.url)
         else:
-            # The video_id is in format 'show_id-episode_id'
-            try:
-                show_id = sel.xpath("//section[@role='main']//a/@data-popularity-program-id").re('([0-9]*)-[0-9]*')[0]
-            except:
-                show_id = '00000'
+            # Original show_id is not used anymore
+            original_show_id = '00000'
 
-            # Get the show url from the rss link
-            show_url = sel.xpath("//link[@type='application/rss+xml']/@href").re('(.*)/rss.xml')[0]
-
-            if self.output_dir!=None:
-                # Use the explicit output dir
-                output_dir=self.output_dir
-            else:
-                # Create a output dir based on a base dir and the show title
-                show_title = sel.xpath("//div[@class='play_video-area-aside__info']/h1/a/text()").extract()[0]
-                output_dir=self.output_base_dir + '/' + show_title
+            # Get the show url (only valid for top-level pages), but not really important
+            show_url = sel.xpath("//meta[@property='og:url']/@content").extract()[0]
+            content_type = sel.xpath("//meta[@property='og:type']/@content").extract()[0]
+            if content_type != 'video.tv_show':
+              self.log("WARNING: This is not a top-level page.")
 
             requests = []
             for url in all_episode_urls:
                 request = Request('http://www.svtplay.se' + url, callback=self.parse_single_episode)
                 item = PlayGrabberItem()
-                item['output_dir'] = output_dir
                 item['show_url'] = show_url
                 # Store the original show id (to be able to detect mixing of seasons)
-                item['original_show_id'] = show_id
+                item['original_show_id'] = original_show_id
                 # Pass on the item for further populating
                 request.meta['episode-item'] = item
                 requests.append(request)
@@ -219,8 +210,10 @@ class PlayGrabberSpider(Spider):
         # Grab essential data about this episode
         sel = Selector(response)
 
+        # Retrieve the partially filled-in item
+        item = response.meta['episode-item']
+
         # First grab show title
-        show_title = sel.xpath("//div[@class='play_video-area-aside__info']/h1/a/text()").extract()[0]
         unique_video_id = sel.xpath("//video/@data-video-id").extract()[0]
 
         # The video_id is in format 'show_id-episode_idX' (where X normally is A)
@@ -229,16 +222,14 @@ class PlayGrabberSpider(Spider):
             show_id = video_id[0]
             episode_id = str(int(video_id[1])).zfill(2)
         except:
+            # We can't really handle this case, but should not happen
             show_id = '00000'
-            try:
-                episode_id = sel.xpath("//section[@role='main']//a/@data-json-href").re('/video/(.*)')[0]
-            except:
-                episode_id = '00'
+            episode_id = '00'
 
         # A nice and robust URL, of the format:
         # http://www.svtplay.se/video/4711/episode-short-name
         try:
-            episode_url = sel.xpath("//section[@role='main']//a/@data-popularity-url").extract()[0]
+            episode_url = sel.xpath("//meta[@property='og:url']/@content").extract()[0]
         except:
             # As fallback, use provided url instead of fancy one.
             episode_url = response.url
@@ -246,23 +237,20 @@ class PlayGrabberSpider(Spider):
         # A computer-friendly short version of the title, suitable to use as filename etc.
         episode_short_name = episode_url.split('/')[-1]
 
-        # Get the show short name from the rss link
-        show_short_name = sel.xpath("//link[@type='application/rss+xml']/@href").re('http://[^/]*/(.*)/rss.xml')[0]
+        # Get the show short name from the show url. Not 100%, but is not critical.
+        show_short_name = item['show_url'].split('/')[-1]
 
         # Try to get the season id
         try:
-            season_id = sel.xpath("//h2[@class='play_video-area-aside__sub-title']").re('song ([0-9]+)[ \t\n]*-')[0].zfill(2)
+            season_id = sel.xpath("//div[@class='play_video-area']//meta[@itemprop='name']/@content").re('song ([0-9]+)[ \t\n]*-')[0].zfill(2)
         except:
             season_id = '00'
 
-        # Retrieve the partially filled-in item and append more data
-        item = response.meta['episode-item']
-
+        # Append more data to the partially filled-in item
         item['unique_video_id']    = unique_video_id
         item['episode_url']        = episode_url
         item['show_id']            = show_id
         item['show_short_name']    = show_short_name
-        item['show_title']         = show_title
         item['episode_id']         = episode_id
         item['episode_short_name'] = episode_short_name
         item['season_id']          = season_id
@@ -283,12 +271,20 @@ class PlayGrabberSpider(Spider):
         # Parse the string to a json object.
         episode_json = json.loads(json_string)
 
-        # Retrieve the partially filled-in item and append more data
+        # Retrieve the partially filled-in item
         item = response.meta['episode-item']
 
         # Some relevant fields that we're currently ignoring:
         # episode_json['programVersionId'] -- should match unique_video_id
-        # episode_json['programTitle'] -- should match show_title
+
+        show_title = episode_json['programTitle']
+
+        if self.output_dir != None:
+            # Use the explicit output dir
+            output_dir = self.output_dir
+        else:
+            # Create a output dir based on a base dir and the show title
+            output_dir = self.output_base_dir + '/' + show_title
 
         # Get the episode title
         try:
@@ -297,6 +293,11 @@ class PlayGrabberSpider(Spider):
                 episode_title = None
         except:
             episode_title = None
+
+        # Before caluclating basename, we need to append more data to the
+        # partially filled-in item
+        item['show_title'] = show_title
+        item['output_dir'] = output_dir
 
         ## Calculate a suitable base name
         basename_title = episode_title
@@ -308,8 +309,9 @@ class PlayGrabberSpider(Spider):
         # 'ShowName.Sxx.Exx.EpisodeName'
         basename = show_and_season_title + '.E' + item['episode_id'] + '.' + basename_title
 
-        item['episode_title']      = episode_title
-        item['basename']           = basename
+        # Append more data to the partially filled-in item
+        item['episode_title'] = episode_title
+        item['basename']      = basename
 
         # Now locate subtitles
         try:
