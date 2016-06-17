@@ -177,7 +177,7 @@ class PlayGrabberSpider(Spider):
             any_episode_url = response.url
 
         # Call this page again and make sure we get all episodes
-        all_episodes_url = any_episode_url.split('?')[0] + '?tab=senast'
+        all_episodes_url = any_episode_url.split('?')[0] + '?tab=senast&sida=99'
         return Request(all_episodes_url, callback=self.parse_all_episodes)
 
     def parse_all_episodes(self, response):
