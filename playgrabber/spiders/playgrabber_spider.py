@@ -7,6 +7,9 @@
 # -*- coding: utf-8 -*-
 
 from subprocess import call
+from urlparse import urlparse
+from urlparse import urljoin
+
 import re
 import json
 import glob
@@ -390,6 +393,10 @@ class PlayGrabberSpider(Spider):
             video_url = item['video_master_url']
         else:
             self.log("Located video for %s with the following HLS description: %s" % (item['basename'], hls_stream_description))
+            video_url_parts = urlparse(video_url)
+            if not video_url_parts.netloc:
+              # Use master video url from response as base for relative video urls
+              video_url = urljoin(response.url, video_url_parts.path)
 
         # Assume mp4 is a good suffix.
         video_suffix = 'mp4'
