@@ -186,7 +186,14 @@ class PlayGrabberSpider(Spider):
         all_episode_urls = sel.xpath("//li/article/a/@href").extract()
 
         if not all_episode_urls:
-            self.log("No episodes available for show %s" % response.url)
+            if response.url.endswith('sida=99'):
+                # If the number of episodes fit on just one page, the "sida=99" barfs
+                # and returns zero hits. Retry without it.
+                self.log("Retrying for all episodes assuming a single page for %s" % response.url)
+                all_episodes_url = response.url.split('?')[0] + '?tab=senast'
+                return Request(all_episodes_url, callback=self.parse_all_episodes)
+            else:
+                self.log("No episodes available for show %s" % response.url)
         else:
             # Original show_id is not used anymore
             original_show_id = '00000'
