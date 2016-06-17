@@ -391,10 +391,6 @@ class PlayGrabberSpider(Spider):
         else:
             self.log("Located video for %s with the following HLS description: %s" % (item['basename'], hls_stream_description))
 
-        # FIXME: If we always end up using the master_url to send to ffmpeg, we should not bother
-        # trying to figure out it on our own.
-        video_url = item['video_master_url']
-
         # Assume mp4 is a good suffix.
         video_suffix = 'mp4'
         # We've been parsing HLS all along.
