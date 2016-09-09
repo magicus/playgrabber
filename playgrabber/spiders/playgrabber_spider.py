@@ -46,7 +46,7 @@ class PlayGrabberSpider(Spider):
                     show_url = show_item['show_url']
                     urls.append(show_url)
             except:
-                raise "Failed to open show info file: " + filename
+                raise Exception("Failed to open show info file: " + filename)
         return urls
 
     # Accepted argument:
