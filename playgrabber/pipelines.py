@@ -110,7 +110,13 @@ class DownloaderPipeline(object):
         mkdir_cmd_line="mkdir -p '" + output_dir + "'"
         self.call_command(mkdir_cmd_line, 'create output directory', item, spider)
 
-        # Then download subtitles if available
+        # Start by downloading video
+        video_url = item['video_url']
+        video_suffix = item['video_suffix']
+        ffmpeg_cmd_line  = "ffmpeg -y -i '" + video_url + "' -acodec copy -vcodec copy -absf aac_adtstoasc '" + output_dir + '/' + basename + '.' + video_suffix + "'"
+        self.call_command(ffmpeg_cmd_line, 'download video', item, spider)
+
+        # Then download subtitles if available. If this fails, just let it.
         subtitles_url = item['subtitles_url']
         subtitles_suffix = item['subtitles_suffix']
         if subtitles_url != None:
@@ -119,12 +125,6 @@ class DownloaderPipeline(object):
                 self.call_command(wget_cmd_line, 'download subtitles', item, spider)
             else:
                 spider.log('Not downloading subtitles from %s' % subtitles_url)
-
-        # Then download video
-        video_url = item['video_url']
-        video_suffix = item['video_suffix']
-        ffmpeg_cmd_line  = "ffmpeg -y -i '" + video_url + "' -acodec copy -vcodec copy -absf aac_adtstoasc '" + output_dir + '/' + basename + '.' + video_suffix + "'"
-        self.call_command(ffmpeg_cmd_line, 'download video', item, spider)
 
         return item
 
