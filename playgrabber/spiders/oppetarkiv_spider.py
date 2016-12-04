@@ -1,10 +1,12 @@
 # oppetarkiv_spider.py
 #
 # Download all available episodes of a TV show from oppetarkiv.se.
-# 
+#
 # Created by magicus <mag@icus.se> 2014-02-25
 #
 # -*- coding: utf-8 -*-
+
+# FIXME: Should be rewritten to use http://www.svt.se/videoplayer-api/video/ like svtplay spider.
 
 from subprocess import call
 import re
@@ -30,7 +32,7 @@ class PlayGrabberOppetArkivSpider(Spider):
     target_resolution = '1280x720'
 
     # Download information file name, hidden by default
-    show_info_file = '.playgrabber-show.json'    
+    show_info_file = '.playgrabber-show.json'
 
     def find_shows_in_base(self, base):
         urls = []
@@ -44,8 +46,8 @@ class PlayGrabberOppetArkivSpider(Spider):
             except:
                 raise "Failed to open show info file: " + filename
         return urls
-            
-    # Accepted argument: 
+
+    # Accepted argument:
     #  'url'  = svtplay.se start URL
     #  'out'  = output directory to store downloaded files in
     #  'base' = base directory in which to create output directory based
@@ -53,7 +55,7 @@ class PlayGrabberOppetArkivSpider(Spider):
     def __init__(self, url=None, out=None, base=None, *args, **kwargs):
         super(PlayGrabberOppetArkivSpider, self).__init__(*args, **kwargs)
         SignalManager(dispatcher.Any).connect(self.closed_handler, signal=signals.spider_closed)
-        if out==None and base==None: 
+        if out==None and base==None:
             raise Exception('Must provide argument "-a out=..." or "-a base=..."')
         if out!=None and base!=None:
             raise Exception('Cannot provide both argument "-a out=..." and "-a base=..."')
@@ -102,21 +104,21 @@ class PlayGrabberOppetArkivSpider(Spider):
                 # assume seasons are not relevant and use the empty string
                 # as season name.
                 show_season_title_map = { show_id: ''}
-            
+
             show_item['show_season_title_map'] = show_season_title_map
             show_season_id_map = { show_id: season_id}
             show_item['show_season_id_map'] = show_season_id_map
             show_item['get_subtitles'] = True
             show_item['filter_out'] = ''
-            
+
             updated = True
-            
+
         try:
             show_season_id_map = show_item['show_season_id_map']
         except:
             show_season_id_map = { show_id: season_id}
             updated = True
-        
+
         if not show_season_title_map.has_key(show_id):
             # First attempt is to name the season using using season_id
             # to Snn.
@@ -150,7 +152,7 @@ class PlayGrabberOppetArkivSpider(Spider):
             result_code = call(mkdir_cmd_line, shell=True)
             if result_code != 0:
                  raise "Failed to create directory " + output_dir
-            
+
             with open(output_dir + '/' + self.show_info_file, 'w') as file:
                 line = json.dumps(dict(show_item)) + '\n'
                 file.write(line)
@@ -161,7 +163,7 @@ class PlayGrabberOppetArkivSpider(Spider):
     # Default parse method, entry point
     def parse(self, response):
         # Call this page again and make sure we get all episodes
-        
+
         if response.url.startswith("http://www.oppetarkiv.se/etikett/titel/"):
             show_base_url = response.url
         else:
@@ -183,7 +185,7 @@ class PlayGrabberOppetArkivSpider(Spider):
         # Figure out next page of the show base URL
         old_base_url_parts = re.search("(http://www.oppetarkiv.se/etikett/titel/.*sida=)([0-9]*)(&sort=tid_stigande)", response.url).groups()
         new_base_url = old_base_url_parts[0] + str(int(old_base_url_parts[1]) + 1) + old_base_url_parts[2]
-        
+
         # Now extract all episodes and grab each of them
         sel = Selector(response)
         all_episode_bases = sel.xpath("//div[@role='main']/section//a/@href").extract()
@@ -200,7 +202,7 @@ class PlayGrabberOppetArkivSpider(Spider):
           all_episode_urls.remove(new_base_url)
         except:
           pass
-          
+
         for test_url in all_episode_urls:
           if re.search("&sort=tid_stigande&dir=-1", test_url):
             all_episode_urls.remove(test_url)
@@ -211,7 +213,7 @@ class PlayGrabberOppetArkivSpider(Spider):
             # Not really used for oppetarkiv.se
             original_show_id = '00000'
 
-            # Get the show short name 
+            # Get the show short name
             url_name_parts = re.search("(http://www.oppetarkiv.se/etikett/titel/)([^/\?]*)(/?\?sida=.*)", response.url).groups()
             show_short_name = url_name_parts[1]
 
@@ -227,7 +229,7 @@ class PlayGrabberOppetArkivSpider(Spider):
                 output_dir=self.output_base_dir + '/' + show_title
 
             requests = []
-            
+
             # Add all found episode urls
             for url in all_episode_urls:
                 self.log("URL is %s" % url)
@@ -242,7 +244,7 @@ class PlayGrabberOppetArkivSpider(Spider):
                 request.meta['episode-item'] = item
                 requests.append(request)
 
-            # Call ourself again with the next page of the show base URL 
+            # Call ourself again with the next page of the show base URL
             request = Request(new_base_url, callback=self.parse_all_episodes)
             requests.append(request)
 
@@ -251,7 +253,7 @@ class PlayGrabberOppetArkivSpider(Spider):
     def parse_single_episode(self, response):
         # Grab essential data about this episode
         sel = Selector(response)
-        
+
         # First grab show title and season
         try:
             show_title_and_season_id = sel.xpath("//header[@class='svtoa_video-area__header']/h1/span[@class='svt-text-margin-extra-small svt-display-block']/text()").re("[\n\t ]*(.*) - S.*song ([0-9]*)[\n\t ]*")
@@ -268,7 +270,8 @@ class PlayGrabberOppetArkivSpider(Spider):
 
         # We don't have access to the show_id here. As a safety measure, use the video id.
         # Hopefully we can overwrite this when we have flashvars.
-        show_id = sel.xpath("//a[@id='player']/@data-id").extract()[0]
+        #show_id = sel.xpath("//a[@id='player']/@data-id").extract()[0]
+        show_id = 0
 
         try:
             episode_id = sel.xpath("//header[@class='svtoa_video-area__header']/h1/span[@class='svt-heading-s svt-display-block']/text()").re("Avsnitt ([0-9]*) av*")[0].zfill(2)
@@ -288,7 +291,7 @@ class PlayGrabberOppetArkivSpider(Spider):
 
         # A computer-friendly short version of the title, suitable to use as filename etc.
         episode_short_name = episode_url.split('/')[-1]
-        
+
         # Retrieve the partially filled-in item and append more data
         item = response.meta['episode-item']
 
@@ -306,18 +309,18 @@ class PlayGrabberOppetArkivSpider(Spider):
         request = Request(episode_url + '?type=embed', callback=self.parse_flashvars)
         # Pass on the item for further populating
         request.meta['episode-item'] = item
-        
+
         return request
 
     def parse_flashvars(self, response):
         sel = Selector(response)
-        
+
         # The data we're looking for is encoded as json in a
         # <object>...<param name="flashvars" value="json={...}">.
         flashvars_string = sel.xpath("//object[@class='svtplayer-jsremove']/param[@name='flashvars']/@value").re('json=(.*)')[0]
         # Parse the string to a json object.
         flashvars_json = json.loads(flashvars_string)
-        
+
         # Retrieve the partially filled-in item and append more data
         item = response.meta['episode-item']
 
@@ -346,17 +349,17 @@ class PlayGrabberOppetArkivSpider(Spider):
         basename_title = episode_title
         if episode_title == None or re.search(r'/', basename_title):
             # The episode has no real title, just a 'day/month [hour:minute]' fake title,
-            # or another title with a slash. 
+            # or another title with a slash.
             # This is no good as filename, use the short name instead.
             basename_title = item['episode_short_name']
-        
+
         # Get a suitable show/season title. Typically this is '<show_title>.S<season_id>'
         show_and_season_title = self.get_show_and_season_title(item)
         # We assume episode id is the episode number
         # Append on show/season_title to create an episode basename like this:
         # 'ShowName.Sxx.Exx.EpisodeName'
         basename = show_and_season_title + '.E' + item['episode_id'] + '.' + basename_title
-        
+
         item['episode_title']      = episode_title
         item['basename']           = basename
 
@@ -369,9 +372,9 @@ class PlayGrabberOppetArkivSpider(Spider):
             subtitles_url = None
         # Assume format is .srt
         subtitles_suffix = 'srt'
-        
-        item['subtitles_url']    = subtitles_url        
-        item['subtitles_suffix'] = subtitles_suffix        
+
+        item['subtitles_url']    = subtitles_url
+        item['subtitles_suffix'] = subtitles_suffix
 
         video_references = flashvars_json["video"]["videoReferences"]
         # Typically, this array contains two elements, "flash" and "ios".
@@ -379,7 +382,7 @@ class PlayGrabberOppetArkivSpider(Spider):
         for ref in video_references:
             if ref['playerType'] == 'ios':
                 video_master_url = ref['url']
-        
+
         if video_master_url:
             self.log("video master URL %s" % video_master_url)
             # dont_filter is True, since this is on svtplay*.akamaihd.net, outside allowed_domains.
@@ -389,10 +392,10 @@ class PlayGrabberOppetArkivSpider(Spider):
             return request
         else:
             raise("Cannot locate video master URL!")
-        
+
     def parse_master_m3u8(self, response):
-        # Now we got ourself an m3u8 (m3u playlist in utf-8) file in 
-        # the response. The URL we're looking for is preceeded by a 
+        # Now we got ourself an m3u8 (m3u playlist in utf-8) file in
+        # the response. The URL we're looking for is preceeded by a
         # comment stating the proper resolution.
         get_next = False
         video_url = None
@@ -409,10 +412,10 @@ class PlayGrabberOppetArkivSpider(Spider):
         video_suffix = 'mp4'
         # We've been parsing HLS all along.
         video_format = 'HLS'
-        
+
         # Retrieve the partially filled-in item and complete it
         item = response.meta['episode-item']
-        item['video_url']        = video_url        
-        item['video_suffix']     = video_suffix        
-        item['video_format']     = video_format        
+        item['video_url']        = video_url
+        item['video_suffix']     = video_suffix
+        item['video_format']     = video_format
         return item
