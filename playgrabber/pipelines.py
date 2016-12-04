@@ -113,7 +113,9 @@ class DownloaderPipeline(object):
         # Start by downloading video
         video_url = item['video_url']
         video_suffix = item['video_suffix']
-        ffmpeg_cmd_line  = "ffmpeg -y -i '" + video_url + "' -acodec copy -vcodec copy -absf aac_adtstoasc '" + output_dir + '/' + basename + '.' + video_suffix + "'"
+        # Needed to disable spamming of "No trailing CRLF found in HTTP header."
+        ffmpeg_bug_workaround = r" -headers 'User-Agent: play'$'\r\n' "
+        ffmpeg_cmd_line  = "ffmpeg" + ffmpeg_bug_workaround + "-y -i '" + video_url + "' -acodec copy -vcodec copy -absf aac_adtstoasc '" + output_dir + '/' + basename + '.' + video_suffix + "'"
         self.call_command(ffmpeg_cmd_line, 'download video', item, spider)
 
         # Then download subtitles if available. If this fails, just let it.
