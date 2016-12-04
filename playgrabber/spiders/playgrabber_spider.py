@@ -177,8 +177,16 @@ class PlayGrabberSpider(Spider):
             any_episode_url = response.url
 
         # Call this page again and make sure we get all episodes
-        all_episodes_url = any_episode_url.split('?')[0] + '?tab=senast&sida=99'
-        return Request(all_episodes_url, callback=self.parse_all_episodes)
+        all_season_tabs = sel.xpath("//ul[@class='play_tab-list lp_tabs']/li/a/@href").extract()
+        # Don't include the shorts
+        check_season_tabs = [t for t in all_season_tabs if t != '?tab=klipp']
+        requests = []
+        for tab in check_season_tabs:
+            all_episodes_url = any_episode_url.split('?')[0] + tab + '&sida=99'
+            request = Request(all_episodes_url, callback=self.parse_all_episodes)
+            requests.append(request)
+
+        return requests
 
     def parse_all_episodes(self, response):
         # Now extract all episodes and grab each of them
