@@ -191,7 +191,7 @@ class PlayGrabberSpider(Spider):
     def parse_all_episodes(self, response):
         # Now extract all episodes and grab each of them
         sel = Selector(response)
-        all_episode_urls = sel.xpath("//li/article/a/@href").extract()
+        all_episode_urls = sel.xpath("//li/article//a/@href").extract()
 
         if not all_episode_urls:
             if response.url.endswith('sida=99'):
