@@ -54,7 +54,9 @@ class PlayGrabberSpider(Spider):
     #  'out'  = output directory to store downloaded files in
     #  'base' = base directory in which to create output directory based
     #           on show name.
-    def __init__(self, url=None, out=None, base=None, *args, **kwargs):
+    #  'only' = if set, only scan the given url and do not download entire
+    #           series.
+    def __init__(self, url=None, out=None, base=None, only=None, *args, **kwargs):
         super(PlayGrabberSpider, self).__init__(*args, **kwargs)
         SignalManager(dispatcher.Any).connect(self.closed_handler, signal=signals.spider_closed)
         if out==None and base==None:
@@ -67,6 +69,10 @@ class PlayGrabberSpider(Spider):
             self.start_urls = [url]
         else:
             self.start_urls = self.find_shows_in_base(base)
+        if only:
+            self.dont_crawl = True
+        else:
+            self.dont_crawl = False
         self.output_dir = out
         self.output_base_dir = base
 
@@ -166,6 +172,16 @@ class PlayGrabberSpider(Spider):
     def parse(self, response):
         sel = Selector(response)
 
+        if self.dont_crawl:
+            request = Request(response.url, callback=self.parse_single_episode)
+            item = PlayGrabberItem()
+            item['show_url'] = response.url
+            # Store the original show id (to be able to detect mixing of seasons)
+            item['original_show_id'] = '00000'
+            # Pass on the item for further populating
+            request.meta['episode-item'] = item
+            return request
+
         # If this is a show index page, we need to get the URL for a single episode
         # (anyone will do, let's take the latest)
         try:
@@ -177,7 +193,7 @@ class PlayGrabberSpider(Spider):
             any_episode_url = response.url
 
         # Call this page again and make sure we get all episodes
-        all_season_tabs = sel.xpath("//ul[@class='play_tab-list lp_tabs']/li/a/@href").extract()
+        all_season_tabs = sel.xpath("//a[@class='play_accordion__section-title']/@href").extract()
         # Don't include the shorts
         check_season_tabs = [t for t in all_season_tabs if t != '?tab=klipp']
         requests = []
