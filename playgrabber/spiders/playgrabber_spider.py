@@ -193,7 +193,7 @@ class PlayGrabberSpider(Spider):
             any_episode_url = response.url
 
         # Call this page again and make sure we get all episodes
-        all_season_tabs = sel.xpath("//a[@class='play_accordion__section-title']/@href").extract()
+        all_season_tabs = sel.xpath("//a[@class='play_accordion__section-title']/@href").re('[^#]*')
         # Don't include the shorts
         check_season_tabs = [t for t in all_season_tabs if t != '?tab=klipp']
         requests = []
