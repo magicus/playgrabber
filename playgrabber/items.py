@@ -13,6 +13,7 @@ class PlayGrabberItem(Item):
 
     episode_url = Field()
     unique_video_id = Field()
+    program_unique_id = Field()
     show_id = Field()
     show_short_name = Field()
     show_title = Field()

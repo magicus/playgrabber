@@ -143,7 +143,7 @@ class PlayGrabberSpider(Spider):
             show_title = show_item['show_title']
             if show_title == '':
                 # This should not happen but treat it as missing value
-                raise
+                raise Exception("Cannot locate show title")
         except:
             # Read the value from the [episode] item, if missing from the show_item
             show_title = item['show_title']
@@ -247,18 +247,8 @@ class PlayGrabberSpider(Spider):
         # Retrieve the partially filled-in item
         item = response.meta['episode-item']
 
-        # First grab show title
+        # The unique_video_id is now internally refered to as svtId, and is a hash
         unique_video_id = sel.xpath("//video/@data-video-id").extract()[0]
-
-        # The video_id is in format 'show_id-episode_idX' (where X normally is A)
-        try:
-            video_id = sel.xpath("//video/@data-video-id").re('([0-9]*)-([0-9]*)')
-            show_id = video_id[0]
-            episode_id = str(int(video_id[1])).zfill(2)
-        except:
-            # We can't really handle this case, but should not happen
-            show_id = '00000'
-            episode_id = '00'
 
         # A nice and robust URL, of the format:
         # http://www.svtplay.se/video/4711/episode-short-name
@@ -283,9 +273,7 @@ class PlayGrabberSpider(Spider):
         # Append more data to the partially filled-in item
         item['unique_video_id']    = unique_video_id
         item['episode_url']        = episode_url
-        item['show_id']            = show_id
         item['show_short_name']    = show_short_name
-        item['episode_id']         = episode_id
         item['episode_short_name'] = episode_short_name
         item['season_id']          = season_id
 
@@ -308,8 +296,23 @@ class PlayGrabberSpider(Spider):
         # Retrieve the partially filled-in item
         item = response.meta['episode-item']
 
-        # Some relevant fields that we're currently ignoring:
-        # episode_json['programVersionId'] -- should match unique_video_id
+        # The program_unique_id is similar to the old unique_video_id in usage;
+        # the new unique_video_id is a SVT-internal hash-like id now.
+        program_unique_id = episode_json['programVersionId']
+
+        # The program_unique_id is in format 'show_id-episode_idX' (where X normally is A)
+        try:
+            video_id = re.match('([0-9]*)-([0-9]*)', program_unique_id).groups()
+            show_id = video_id[0]
+            episode_id = str(int(video_id[1])).zfill(2)
+        except:
+            # We can't really handle this case, but should not happen
+            show_id = '00000'
+            episode_id = '00'
+
+        item['program_unique_id']  = program_unique_id
+        item['show_id']            = show_id
+        item['episode_id']         = episode_id
 
         show_title = episode_json['programTitle']
 
