@@ -164,16 +164,16 @@ class PlayGrabberOppetArkivSpider(Spider):
     def parse(self, response):
         # Call this page again and make sure we get all episodes
 
-        if response.url.startswith("http://www.oppetarkiv.se/etikett/titel/"):
+        if response.url.startswith("https://www.oppetarkiv.se/etikett/titel/"):
             show_base_url = response.url
         else:
             sel = Selector(response)
             try:
                 # If this is the page of a single episode, get the base page,
                 # i.e. all videos with the same title tag.
-                show_base_url = sel.xpath("//dl[@class='svtoa-data-list']/dd/a/@href").re("(.*/etikett/titel/.*)")[0]
-                if not show_base_url.startswith("http://www.oppetarkiv.se"):
-                    show_base_url = 'http://www.oppetarkiv.se' + show_base_url
+                show_base_url = sel.xpath("//head/meta[@property='og:url']/@content").re("(.*/etikett/titel/.*)")[0]
+                if not show_base_url.startswith("https://www.oppetarkiv.se"):
+                    show_base_url = 'https://www.oppetarkiv.se' + show_base_url
             except:
                 raise Exception('Cannot extract a proper show base URL from %s' % response.url)
 
@@ -183,16 +183,16 @@ class PlayGrabberOppetArkivSpider(Spider):
 
     def parse_all_episodes(self, response):
         # Figure out next page of the show base URL
-        old_base_url_parts = re.search("(http://www.oppetarkiv.se/etikett/titel/.*sida=)([0-9]*)(&sort=tid_stigande)", response.url).groups()
+        old_base_url_parts = re.search("(https://www.oppetarkiv.se/etikett/titel/.*sida=)([0-9]*)(&sort=tid_stigande)", response.url).groups()
         new_base_url = old_base_url_parts[0] + str(int(old_base_url_parts[1]) + 1) + old_base_url_parts[2]
 
         # Now extract all episodes and grab each of them
         sel = Selector(response)
         all_episode_bases = sel.xpath("//div[@role='main']/section//a/@href").extract()
-        if not all_episode_bases[0].startswith("http://www.oppetarkiv.se"):
+        if not all_episode_bases[0].startswith("https://www.oppetarkiv.se"):
           all_episode_urls = []
           for base in all_episode_bases:
-            episode_url = 'http://www.oppetarkiv.se' + base
+            episode_url = 'https://www.oppetarkiv.se' + base
             all_episode_urls.append(episode_url)
         else:
           all_episode_urls = all_episode_bases
@@ -214,11 +214,11 @@ class PlayGrabberOppetArkivSpider(Spider):
             original_show_id = '00000'
 
             # Get the show short name
-            url_name_parts = re.search("(http://www.oppetarkiv.se/etikett/titel/)([^/\?]*)(/?\?sida=.*)", response.url).groups()
+            url_name_parts = re.search("(https://www.oppetarkiv.se/etikett/titel/)([^/\?]*)(/?\?sida=.*)", response.url).groups()
             show_short_name = url_name_parts[1]
 
             # Construct the show URL using short name and well-known prefix
-            show_url = "http://www.oppetarkiv.se/etikett/titel/" + show_short_name
+            show_url = "https://www.oppetarkiv.se/etikett/titel/" + show_short_name
 
             if self.output_dir!=None:
                 # Use the explicit output dir
