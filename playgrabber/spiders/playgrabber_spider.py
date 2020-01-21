@@ -198,7 +198,7 @@ class PlayGrabberSpider(Spider):
         check_season_tabs = [t for t in all_season_tabs if t != '?tab=klipp']
         requests = []
         for tab in check_season_tabs:
-            all_episodes_url = any_episode_url.split('?')[0] + tab + '&sida=99'
+            all_episodes_url = any_episode_url.split('?')[0] + tab + '&stopp=99'
             request = Request(all_episodes_url, callback=self.parse_all_episodes)
             requests.append(request)
 
